@@ -93,6 +93,32 @@ contract BidSignaturesTest is Test {
         err = abi.encodeWithSignature("InvalidSignature()");
         vm.expectRevert(err);
 
+        // provide signature data using wrong NFT mint address (address(this) != bidder)
+        settlement.settleFromSignature(
+            bidder,
+            bid.bidder,
+            bid.amount,
+            bid.blockDeadline,
+            v,
+            r,
+            s
+        );
+
+        vm.expectRevert(err);
+
+        // provide signature data using wrong bidder address (bidder != address(this))
+        settlement.settleFromSignature(
+            bid.auctionAddress,
+            address(this),
+            bid.amount,
+            bid.blockDeadline,
+            v,
+            r,
+            s
+        );
+
+        vm.expectRevert(err);
+
         // provide signature data using wrong NFT mint amount (68 != 69)
         settlement.settleFromSignature(
             bid.auctionAddress,
@@ -102,6 +128,58 @@ contract BidSignaturesTest is Test {
             v,
             r,
             s
+        );
+
+        vm.expectRevert(err);
+
+        // provide signature data using wrong blockDeadline
+        settlement.settleFromSignature(
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.blockDeadline -= 1,
+            v,
+            r,
+            s
+        );
+
+        vm.expectRevert(err);
+
+        // provide signature data using wrong v
+        settlement.settleFromSignature(
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.blockDeadline,
+            v -= 1,
+            r,
+            s
+        );
+
+        vm.expectRevert(err);
+
+        // provide signature data using wrong r (XOR against s)
+        settlement.settleFromSignature(
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.blockDeadline,
+            v,
+            r ^ s,
+            s
+        );
+
+        vm.expectRevert(err);
+
+        // provide signature data using wrong s (XOR against r)
+        settlement.settleFromSignature(
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.blockDeadline,
+            v,
+            r,
+            s ^ r
         );
     }
 }

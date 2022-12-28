@@ -8,9 +8,11 @@ import "ERC721A/ERC721A.sol";
 
 contract Example721 is ERC721A {
 
+    error IncorrectPricePaid();
+
     constructor() ERC721A("Creator", "CREATOR") {}
 
     function mint(address to, uint256 amount) external payable {
-        _mint(to, quantity);
+        _mint(to, amount);
     }
 }
