@@ -12,6 +12,7 @@ contract BidSignaturesTest is Test {
 
     uint256 internal bidderPrivateKey;
     address internal bidder;
+    bytes public err;
 
     // initialize test environment
     function setUp() public {
@@ -48,6 +49,59 @@ contract BidSignaturesTest is Test {
         assertEq(placeholder, bid.auctionAddress);
     }
 
-    // function testRevert_AuctionConcluded() public {}
-    // function testRevert_InvalidSignature() public {}
+    function testRevert_AuctionConcluded() public {
+        BidSignatures.Bid memory bid = BidSignatures.Bid({
+            auctionAddress: address(this),
+            bidder: bidder,
+            amount: 69,
+            blockDeadline: 16969696
+        });
+
+        bytes32 digest = settlement.hashTypedData(bid);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidderPrivateKey, digest);
+
+        // fast forward to one block past blockDeadline
+        vm.roll(16969697);
+
+        err = abi.encodeWithSignature("AuctionDeadlineConcluded()");
+        vm.expectRevert(err);
+
+        settlement.settleFromSignature(
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.blockDeadline,
+            v,
+            r,
+            s
+        );
+    }
+
+    function testRevert_InvalidSignature() public {
+        BidSignatures.Bid memory bid = BidSignatures.Bid({
+            auctionAddress: address(this),
+            bidder: bidder,
+            amount: 69,
+            blockDeadline: 16969696
+        });
+
+        bytes32 digest = settlement.hashTypedData(bid);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidderPrivateKey, digest);
+
+        err = abi.encodeWithSignature("InvalidSignature()");
+        vm.expectRevert(err);
+
+        // provide signature data using wrong NFT mint amount (68 != 69)
+        settlement.settleFromSignature(
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount -= 1,
+            bid.blockDeadline,
+            v,
+            r,
+            s
+        );
+    }
 }
