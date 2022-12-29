@@ -8,20 +8,42 @@ import "./utils/BidSignatures.sol";
 
 contract Settlement is BidSignatures {
 
+    /// @dev Error thrown at a preset threshold to prevent excessive first-time token transfer costs
+    error ExcessAmount();
+
+    /// @dev Maximum mint threshold amount to prevent excessive first-time token transfer costs
+    /// @dev Stored in storage for gas optimization (as opposed to repeated mstores)
+    uint8 mintMax;
+
     /// @dev Auction registry enumerated by index; could be deprecated in favor of token addresses if offchain recordkeeping is sufficient
     mapping(uint => address) public auctionIds;
+
+    constructor() {
+        mintMax = 30;
+    }
     
     /// @dev Function to settle each winning bid via EIP-712 signature
+    /// @param auctionName The name of the creator's NFT collection being auctioned
+    /// @param auctionAddress The address of the creator NFT being bid on. Becomes a string off-chain.
+    /// @param bidder The address of the bid's originator, similar to tx.origin.
+    /// @param amount The number of assets being bid on.
+    /// @param basePrice The base price per NFT set by the collection's creator
+    /// @param tip The tip per NFT offered by the bidder in order to win a mint in the auction
+    /// @param totalWeth The total amount of WETH covered by this individual bid. Ie amount * (basePrice + tip)
     function settleFromSignature(
+        string calldata auctionName,
         address auctionAddress,
         address bidder,
         uint256 amount,
-        uint32 blockDeadline,
+        uint256 basePrice,
+        uint256 tip,
+        uint256 totalWeth,
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external /* internal ? */ {
-        if (block.number > blockDeadline) revert AuctionDeadlineConcluded();
+    ) external {
+
+        if (amount > mintMax) revert ExcessAmount();
 
         address recovered = ecrecover(
             keccak256(
@@ -32,10 +54,13 @@ contract Settlement is BidSignatures {
                     keccak256(
                         abi.encode(
                             BID_TYPE_HASH,
+                            auctionName,
                             auctionAddress,
                             bidder,
                             amount,
-                            blockDeadline
+                            basePrice,
+                            tip,
+                            totalWeth
                         )
                     )
                 )
@@ -48,13 +73,13 @@ contract Settlement is BidSignatures {
         // handle signature error cases
         if (recovered == address(0) || recovered != bidder) revert InvalidSignature();
 
-        _settle(auctionAddress, bidder, amount, blockDeadline);
+        _settle(auctionAddress, bidder, amount);
     }
     
     /// @dev Internal function that finalizes the settlements upon verification of signatures
-    function _settle(address auctionAddress, address bidder, uint256 amount, uint32 blockDeadline) internal {
+    function _settle(address auctionAddress, address bidder, uint256 amount) private {
         
-        //todo ie. auctionAddress.mint()
+        //todo ie. IERC721(auctionAddress).mint(bidder, amount);
 
         // placeholder for tests while I make sure signatures are working as intended
         auctionIds[amount] = auctionAddress;
@@ -62,5 +87,6 @@ contract Settlement is BidSignatures {
 
     /// @dev Function to be called by the Orchestrator following the conclusion of each auction
     // todo
-    // function finalizeAuction(Bid[] memory bids) { for (uint256 i; i < bids.length; i++) settleFromSignature() }
+    // mark settleFromSignature as internal once this function is implemented
+    // function finalizeAuction(Bid[] memory bids) { for (uint256 i; i < bids.length; i++) settleFromSignature(bid.name bid.address bid.amount etc) }
 }

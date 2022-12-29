@@ -6,26 +6,30 @@ pragma solidity ^0.8.13;
 
 abstract contract BidSignatures {
 
-    /// @dev Error to revert execution if auction has concluded
-    error AuctionDeadlineConcluded();
     /// @dev Error to revert execution if ecrecover returns invalid signature originator
     error InvalidSignature();
 
     /// @dev Struct of bid data to be hashed and signed for meta-transactions. 
+    /// @param auctionName The name of the creator's NFT collection being auctioned
     /// @param auctionAddress The address of the creator NFT being bid on. Becomes a string off-chain.
     /// @param bidder The address of the bid's originator, similar to tx.origin.
     /// @param amount The number of assets being bid on.
-    /// @param blockDeadline The block height at which the auction concludes
+    /// @param basePrice The base price per NFT set by the collection's creator
+    /// @param tip The tip per NFT offered by the bidder in order to win a mint in the auction
+    /// @param totalWeth The total amount of WETH covered by this individual bid. Ie amount * (basePrice + tip)
     struct Bid {
+        string auctionName;
         address auctionAddress;
         address bidder;
         uint256 amount;
-        uint32 blockDeadline;
+        uint256 basePrice;
+        uint256 tip;
+        uint256 totalWeth;
     }
 
     /// @dev The EIP-712 type hash for the Bid struct
     bytes32 internal constant BID_TYPE_HASH = 
-        keccak256("Bid(address auctionAddress,address bidder,uint256 amount,uint32 blockDeadline)"
+        keccak256("Bid(string auctionName,address auctionAddress,uint256 amount,uint256 basePrice,uint256 tip,uint256 totalWeth)"
     );
     
     /// @dev The EIP-712 domain type hash, required to derive domain separator
@@ -64,10 +68,13 @@ abstract contract BidSignatures {
         return keccak256(
             abi.encode(
                 BID_TYPE_HASH,
+                bid.auctionName,
                 bid.auctionAddress,
                 bid.bidder,
                 bid.amount,
-                bid.blockDeadline
+                bid.basePrice,
+                bid.tip,
+                bid.totalWeth
             )
         );
     }

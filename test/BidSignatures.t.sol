@@ -25,10 +25,13 @@ contract BidSignaturesTest is Test {
 
     function test_settleFromSignature() public {
         BidSignatures.Bid memory bid = BidSignatures.Bid({
+            auctionName: "TestNFT",
             auctionAddress: address(this),
             bidder: bidder,
-            amount: 69,
-            blockDeadline: 16969696
+            amount: 30,
+            basePrice: 420,
+            tip: 69,
+            totalWeth: 14670
         });
 
         bytes32 digest = settlement.hashTypedData(bid);
@@ -36,10 +39,13 @@ contract BidSignaturesTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidderPrivateKey, digest);
 
         settlement.settleFromSignature(
+            bid.auctionName,
             bid.auctionAddress,
             bid.bidder,
             bid.amount,
-            bid.blockDeadline,
+            bid.basePrice,
+            bid.tip,
+            bid.totalWeth,
             v,
             r,
             s
@@ -49,41 +55,15 @@ contract BidSignaturesTest is Test {
         assertEq(placeholder, bid.auctionAddress);
     }
 
-    function testRevert_AuctionConcluded() public {
-        BidSignatures.Bid memory bid = BidSignatures.Bid({
-            auctionAddress: address(this),
-            bidder: bidder,
-            amount: 69,
-            blockDeadline: 16969696
-        });
-
-        bytes32 digest = settlement.hashTypedData(bid);
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidderPrivateKey, digest);
-
-        // fast forward to one block past blockDeadline
-        vm.roll(16969697);
-
-        err = abi.encodeWithSignature("AuctionDeadlineConcluded()");
-        vm.expectRevert(err);
-
-        settlement.settleFromSignature(
-            bid.auctionAddress,
-            bid.bidder,
-            bid.amount,
-            bid.blockDeadline,
-            v,
-            r,
-            s
-        );
-    }
-
     function testRevert_InvalidSignature() public {
         BidSignatures.Bid memory bid = BidSignatures.Bid({
+            auctionName: "TestNFT",
             auctionAddress: address(this),
             bidder: bidder,
-            amount: 69,
-            blockDeadline: 16969696
+            amount: 30,
+            basePrice: 420,
+            tip: 69,
+            totalWeth: 14670
         });
 
         bytes32 digest = settlement.hashTypedData(bid);
@@ -93,13 +73,31 @@ contract BidSignaturesTest is Test {
         err = abi.encodeWithSignature("InvalidSignature()");
         vm.expectRevert(err);
 
-        // provide signature data using wrong NFT mint address (address(this) != bidder)
+        // provide signature data using wrong auctionName
         settlement.settleFromSignature(
-            bidder,
+            "Hello World",
+            bid.auctionAddress,
             bid.bidder,
             bid.amount,
-            bid.blockDeadline,
+            bid.basePrice,
+            bid.tip,
+            bid.totalWeth,
             v,
+            r,
+            s ^ r
+        );
+
+        vm.expectRevert(err);
+
+        // provide signature data using wrong NFT mint address (address(this) != bidder)
+        settlement.settleFromSignature(
+            bid.auctionName,
+            address(0xbeef),
+            bid.bidder,
+            bid.amount,
+            bid.basePrice,
+            bid.tip,
+            bid.totalWeth,            v,
             r,
             s
         );
@@ -108,10 +106,13 @@ contract BidSignaturesTest is Test {
 
         // provide signature data using wrong bidder address (bidder != address(this))
         settlement.settleFromSignature(
+            bid.auctionName,
             bid.auctionAddress,
             address(this),
             bid.amount,
-            bid.blockDeadline,
+            bid.basePrice,
+            bid.tip,
+            bid.totalWeth,
             v,
             r,
             s
@@ -121,10 +122,13 @@ contract BidSignaturesTest is Test {
 
         // provide signature data using wrong NFT mint amount (68 != 69)
         settlement.settleFromSignature(
+            bid.auctionName,
             bid.auctionAddress,
             bid.bidder,
             bid.amount -= 1,
-            bid.blockDeadline,
+            bid.basePrice,
+            bid.tip,
+            bid.totalWeth,
             v,
             r,
             s
@@ -132,12 +136,47 @@ contract BidSignaturesTest is Test {
 
         vm.expectRevert(err);
 
-        // provide signature data using wrong blockDeadline
+        // provide signature data using wrong basePrice
         settlement.settleFromSignature(
+            bid.auctionName,
             bid.auctionAddress,
             bid.bidder,
             bid.amount,
-            bid.blockDeadline -= 1,
+            bid.basePrice -= 1,
+            bid.tip,
+            bid.totalWeth,
+            v,
+            r,
+            s
+        );
+
+        vm.expectRevert(err);
+
+        // provide signature data using wrong tip
+        settlement.settleFromSignature(
+            bid.auctionName,
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.basePrice,
+            bid.tip -= 1,
+            bid.totalWeth,
+            v,
+            r,
+            s
+        );
+
+        vm.expectRevert(err);
+        
+        // provide signature data using wrong totalWeth
+        settlement.settleFromSignature(
+            bid.auctionName,
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.basePrice,
+            bid.tip,
+            bid.totalWeth -= 1,
             v,
             r,
             s
@@ -147,10 +186,13 @@ contract BidSignaturesTest is Test {
 
         // provide signature data using wrong v
         settlement.settleFromSignature(
+            bid.auctionName,
             bid.auctionAddress,
             bid.bidder,
             bid.amount,
-            bid.blockDeadline,
+            bid.basePrice,
+            bid.tip,
+            bid.totalWeth,
             v -= 1,
             r,
             s
@@ -160,10 +202,13 @@ contract BidSignaturesTest is Test {
 
         // provide signature data using wrong r (XOR against s)
         settlement.settleFromSignature(
+            bid.auctionName,
             bid.auctionAddress,
             bid.bidder,
             bid.amount,
-            bid.blockDeadline,
+            bid.basePrice,
+            bid.tip,
+            bid.totalWeth,
             v,
             r ^ s,
             s
@@ -173,10 +218,13 @@ contract BidSignaturesTest is Test {
 
         // provide signature data using wrong s (XOR against r)
         settlement.settleFromSignature(
+            bid.auctionName,
             bid.auctionAddress,
             bid.bidder,
             bid.amount,
-            bid.blockDeadline,
+            bid.basePrice,
+            bid.tip,
+            bid.totalWeth,
             v,
             r,
             s ^ r
