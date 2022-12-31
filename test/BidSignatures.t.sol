@@ -3,20 +3,26 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "../src/Settlement.sol";
+import "../src/Example721A.sol";
 import "../src/utils/BidSignatures.sol";
 
 contract BidSignaturesTest is Test {
     
     // as BidSignatures utility contract is abstract, it suffices to instantiate the Settlement that inherits it
     Settlement public settlement;
+    Example721A public pikaExample;
 
+    uint256 public price;
     uint256 internal bidderPrivateKey;
     address internal bidder;
     bytes public err;
 
     // initialize test environment
     function setUp() public {
+        price = 69;
+
         settlement = new Settlement();
+        pikaExample = new Example721A(price);
 
         // prepare the cow carcass private key with which to sign
         bidderPrivateKey = 0xDEADBEEF;
@@ -26,10 +32,10 @@ contract BidSignaturesTest is Test {
     function test_settleFromSignature() public {
         BidSignatures.Bid memory bid = BidSignatures.Bid({
             auctionName: "TestNFT",
-            auctionAddress: address(this),
+            auctionAddress: address(pikaExample),
             bidder: bidder,
-            amount: 30,
-            basePrice: 420,
+            amount: settlement.mintMax(),
+            basePrice: price,
             tip: 69,
             totalWeth: 14670
         });
@@ -51,17 +57,24 @@ contract BidSignaturesTest is Test {
             s
         );
 
-        address placeholder = settlement.auctionIds(bid.amount);
-        assertEq(placeholder, bid.auctionAddress);
+        uint256 balance = pikaExample.balanceOf(bidder);
+        assertEq(balance, bid.amount);
+
+        // ERC721A defaults to _startTokenId() == 0, causing _currentIndex to be 0
+        // that is acceptable for this test, projects wishing to begin tokenIds at 1 should override that function
+        for (uint i; i < bid.amount; ++i) {
+            address recipient = pikaExample.ownerOf(i);
+            assertEq(recipient, bid.bidder);
+        }
     }
 
     function testRevert_InvalidSignature() public {
         BidSignatures.Bid memory bid = BidSignatures.Bid({
             auctionName: "TestNFT",
-            auctionAddress: address(this),
+            auctionAddress: address(pikaExample),
             bidder: bidder,
-            amount: 30,
-            basePrice: 420,
+            amount: settlement.mintMax(),
+            basePrice: price,
             tip: 69,
             totalWeth: 14670
         });
@@ -97,7 +110,8 @@ contract BidSignaturesTest is Test {
             bid.amount,
             bid.basePrice,
             bid.tip,
-            bid.totalWeth,            v,
+            bid.totalWeth,            
+            v,
             r,
             s
         );

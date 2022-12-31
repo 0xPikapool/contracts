@@ -10,10 +10,12 @@ contract Settlement is BidSignatures {
 
     /// @dev Error thrown at a preset threshold to prevent excessive first-time token transfer costs
     error ExcessAmount();
+    /// @dev Error thrown if a mint fails
+    error MintFailure();
 
     /// @dev Maximum mint threshold amount to prevent excessive first-time token transfer costs
     /// @dev Stored in storage for gas optimization (as opposed to repeated mstores)
-    uint8 mintMax;
+    uint256 public mintMax;
 
     /// @dev Auction registry enumerated by index; could be deprecated in favor of token addresses if offchain recordkeeping is sufficient
     mapping(uint => address) public auctionIds;
@@ -78,11 +80,11 @@ contract Settlement is BidSignatures {
     
     /// @dev Internal function that finalizes the settlements upon verification of signatures
     function _settle(address auctionAddress, address bidder, uint256 amount) private {
-        
-        //todo ie. IERC721(auctionAddress).mint(bidder, amount);
+        (bool r,) = auctionAddress.call(abi.encodeWithSignature("mint(address,uint256)", bidder, amount));
+        if (!r) revert MintFailure();
 
         // placeholder for tests while I make sure signatures are working as intended
-        auctionIds[amount] = auctionAddress;
+        // auctionIds[amount] = auctionAddress;
     }
 
     /// @dev Function to be called by the Orchestrator following the conclusion of each auction
