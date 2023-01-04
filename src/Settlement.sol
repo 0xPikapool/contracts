@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: None
 pragma solidity ^0.8.13;
 
+import "solmate/tokens/WETH.sol";
 import "./utils/BidSignatures.sol";
 
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xKhepri and PikaPool Developers
 
+/// @dev Error thrown at a preset threshold to prevent excessive first-time token transfer costs
+error ExcessAmount();
+/// @dev Error thrown if WETH transferFrom() call fails, implying the bidder's payment failed
+error PaymentFailure();
+/// @dev Error thrown if a mint fails
+error MintFailure();
+
 contract Settlement is BidSignatures {
 
-    /// @dev Error thrown at a preset threshold to prevent excessive first-time token transfer costs
-    error ExcessAmount();
-    /// @dev Error thrown if a mint fails
-    error MintFailure();
+    WETH public weth;
 
     /// @dev Maximum mint threshold amount to prevent excessive first-time token transfer costs
     /// @dev Stored in storage for gas optimization (as opposed to repeated mstores)
@@ -20,8 +25,9 @@ contract Settlement is BidSignatures {
     /// @dev Auction registry enumerated by index; could be deprecated in favor of token addresses if offchain recordkeeping is sufficient
     mapping(uint => address) public auctionIds;
 
-    constructor() {
-        mintMax = 30;
+    constructor(address _wethAddress, uint256 _mintMax) {
+        weth = WETH(payable(_wethAddress));
+        mintMax = _mintMax;
     }
     
     /// @dev Function to settle each winning bid via EIP-712 signature
@@ -75,16 +81,16 @@ contract Settlement is BidSignatures {
         // handle signature error cases
         if (recovered == address(0) || recovered != bidder) revert InvalidSignature();
 
-        _settle(auctionAddress, bidder, amount);
+        _settle(auctionAddress, bidder, amount, totalWeth);
     }
     
     /// @dev Internal function that finalizes the settlements upon verification of signatures
-    function _settle(address auctionAddress, address bidder, uint256 amount) private {
+    function _settle(address auctionAddress, address bidder, uint256 amount, uint256 totalWeth) internal {
+        bool p = weth.transferFrom(bidder, address(this), totalWeth);
+        if (!p) revert PaymentFailure();
+
         (bool r,) = auctionAddress.call(abi.encodeWithSignature("mint(address,uint256)", bidder, amount));
         if (!r) revert MintFailure();
-
-        // placeholder for tests while I make sure signatures are working as intended
-        // auctionIds[amount] = auctionAddress;
     }
 
     /// @dev Function to be called by the Orchestrator following the conclusion of each auction

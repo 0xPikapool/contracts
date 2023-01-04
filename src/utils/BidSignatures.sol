@@ -4,10 +4,10 @@ pragma solidity ^0.8.13;
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xKhepri and PikaPool Developers
 
-abstract contract BidSignatures {
+/// @dev Error to revert execution if ecrecover returns invalid signature originator
+error InvalidSignature();
 
-    /// @dev Error to revert execution if ecrecover returns invalid signature originator
-    error InvalidSignature();
+abstract contract BidSignatures {
 
     /// @dev Struct of bid data to be hashed and signed for meta-transactions. 
     /// @param auctionName The name of the creator's NFT collection being auctioned
@@ -44,7 +44,7 @@ abstract contract BidSignatures {
     bytes32 internal constant DOMAIN_VERSION = keccak256("v0");
 
     /// @dev The EIP-712 domain separator, required to prevent replay attacks across networks
-    bytes32 internal immutable DOMAIN_SEPARATOR;
+    bytes32 public immutable DOMAIN_SEPARATOR;
 
     /// @dev Event emitted when a bid is signed.
     //todo

@@ -8,7 +8,7 @@ add example nft contract for testing and to demonstrate:
       -consider pushing eip4494 to said plugin/custom logic for better UX. Nonce must however be incremented each transfer
 add access control to nft contract so only Settlement.sol may mint
 
-refactor tests to complete mints once example nft is ossified
+refactor domain separator logic to be chain agnostic via internal computer and public getter functions
 
 gas optimizations:
     -replace keccak256 computation for EIP-712 variables

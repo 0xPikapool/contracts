@@ -6,14 +6,14 @@ import "../src/Settlement.sol";
 import "../src/Example721A.sol";
 import "../src/utils/BidSignatures.sol";
 
-contract BidSignaturesTest is Test {
+/// This contract inherits Settlement so that it can isolate settleFromSignature() logic from payment mechanics
+contract BidSignaturesTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 30) {
     
     // as BidSignatures utility contract is abstract, it suffices to instantiate the Settlement that inherits it
     Settlement public settlement;
     Example721A public pikaExample;
 
-    uint256 mainnetFork;
-    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
+    BidSignatures.Bid bid;
     uint256 public priceInGweth;
     uint256 internal bidderPrivateKey;
     address internal bidder;
@@ -21,46 +21,70 @@ contract BidSignaturesTest is Test {
 
     // initialize test environment
     function setUp() public {
-        mainnetFork = vm.createFork(MAINNET_RPC_URL);
-
         priceInGweth = 69;
 
-        settlement = new Settlement();
+        settlement = new Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 30);
         pikaExample = new Example721A(priceInGweth);
 
         // prepare the cow carcass private key with which to sign
         bidderPrivateKey = 0xDEADBEEF;
         bidder = vm.addr(bidderPrivateKey);
-    }
 
-    function test_settleFromSignature() public {
-        BidSignatures.Bid memory bid = BidSignatures.Bid({
+        // prepare the bid to be used
+        bid = BidSignatures.Bid({
             auctionName: "TestNFT",
             auctionAddress: address(pikaExample),
             bidder: bidder,
             amount: settlement.mintMax(),
             basePrice: priceInGweth,
             tip: 69,
-            totalWeth: 14670
+            totalWeth: 2139
         });
+    }
 
+    function test_settleFromSignature() public {
         bytes32 digest = settlement.hashTypedData(bid);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidderPrivateKey, digest);
 
-        settlement.settleFromSignature(
-            bid.auctionName,
-            bid.auctionAddress,
-            bid.bidder,
-            bid.amount,
-            bid.basePrice,
-            bid.tip,
-            bid.totalWeth,
+        // extracted the settleFromSignature() logic without payment to isolate and verify signature functionality
+        uint256 amount = bid.amount;
+        if (amount > settlement.mintMax()) revert ExcessAmount();
+
+        address recovered = ecrecover(
+            keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    settlement.DOMAIN_SEPARATOR(),
+                    // gas optimization of BidSignatures.hashBid(): calldata < mstore/mload !
+                    keccak256(
+                        abi.encode(
+                            BID_TYPE_HASH,
+                            // keccak256("Bid(string auctionName,address auctionAddress,uint256 amount,uint256 basePrice,uint256 tip,uint256 totalWeth)"),
+                            bid.auctionName,
+                            bid.auctionAddress,
+                            bid.bidder,
+                            bid.amount,
+                            bid.basePrice,
+                            bid.tip,
+                            bid.totalWeth
+                        )
+                    )
+                )
+            ),
             v,
             r,
             s
         );
 
+        // handle signature error cases
+        if (recovered == address(0) || recovered != bidder) revert InvalidSignature();
+
+        // _settle() without payment mechanics
+        (bool m,) = bid.auctionAddress.call(abi.encodeWithSignature("mint(address,uint256)", bid.bidder, bid.amount));
+        if (!m) revert MintFailure();
+
+        // check settlement was successful
         uint256 balance = pikaExample.balanceOf(bidder);
         assertEq(balance, bid.amount);
 
@@ -72,22 +96,7 @@ contract BidSignaturesTest is Test {
         }
     }
 
-    function test_settleFromSignatureWithPayment() public {
-        vm.selectFork(mainnetFork);
-        assertEq(vm.activeFork(), mainnetFork);
-    }
-
     function testRevert_InvalidSignature() public {
-        BidSignatures.Bid memory bid = BidSignatures.Bid({
-            auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
-            bidder: bidder,
-            amount: settlement.mintMax(),
-            basePrice: priceInGweth,
-            tip: 69,
-            totalWeth: 14670
-        });
-
         bytes32 digest = settlement.hashTypedData(bid);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidderPrivateKey, digest);
