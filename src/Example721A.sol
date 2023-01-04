@@ -11,15 +11,14 @@ contract Example721A is ERC721A {
 
     error IncorrectPricePaid();
 
-    // uint256 price;
+    uint256 priceInWeth;
 
-    constructor(uint256 _price) ERC721A("PikaExample", "PIKA") {
+    constructor(uint256 _priceInWeth) ERC721A("PikaExample", "PIKA") {
         //owner = settlement;
-        // price = _price;
+        priceInWeth = _priceInWeth;
     }
 
-    function mint(address to, uint256 amount) external payable /* onlyOwner */ {
-        // if (msg.value != price) revert IncorrectPricePaid();
+    function mint(address to, uint256 amount) external /* onlyOwner */ {
         _mint(to, amount);
     }
 }

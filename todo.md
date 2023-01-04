@@ -1,4 +1,6 @@
-CONSULT with team on WETH approval workings. inquire what kind of smart contract logic is needed
+currently operating under assumption that a WETH approval is made without a transfer to escrow/this contract. this will lead the settlement contract to call a transferFrom() to itself on behalf of the bidder as payment.
+  -CONSULT with team on this style of WETH approval workings as it can lead to failed transactions, wasting gas
+  -would prepayment/refunding be more gas efficient? too much hassle for off-chain validation?
 
 add example nft contract for testing and to demonstrate:
     NFT creators will need to conform to orchestrator batch minting either via plugin or custom logic

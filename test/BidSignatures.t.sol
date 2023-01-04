@@ -12,17 +12,21 @@ contract BidSignaturesTest is Test {
     Settlement public settlement;
     Example721A public pikaExample;
 
-    uint256 public price;
+    uint256 mainnetFork;
+    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
+    uint256 public priceInGweth;
     uint256 internal bidderPrivateKey;
     address internal bidder;
     bytes public err;
 
     // initialize test environment
     function setUp() public {
-        price = 69;
+        mainnetFork = vm.createFork(MAINNET_RPC_URL);
+
+        priceInGweth = 69;
 
         settlement = new Settlement();
-        pikaExample = new Example721A(price);
+        pikaExample = new Example721A(priceInGweth);
 
         // prepare the cow carcass private key with which to sign
         bidderPrivateKey = 0xDEADBEEF;
@@ -35,7 +39,7 @@ contract BidSignaturesTest is Test {
             auctionAddress: address(pikaExample),
             bidder: bidder,
             amount: settlement.mintMax(),
-            basePrice: price,
+            basePrice: priceInGweth,
             tip: 69,
             totalWeth: 14670
         });
@@ -68,13 +72,18 @@ contract BidSignaturesTest is Test {
         }
     }
 
+    function test_settleFromSignatureWithPayment() public {
+        vm.selectFork(mainnetFork);
+        assertEq(vm.activeFork(), mainnetFork);
+    }
+
     function testRevert_InvalidSignature() public {
         BidSignatures.Bid memory bid = BidSignatures.Bid({
             auctionName: "TestNFT",
             auctionAddress: address(pikaExample),
             bidder: bidder,
             amount: settlement.mintMax(),
-            basePrice: price,
+            basePrice: priceInGweth,
             tip: 69,
             totalWeth: 14670
         });
