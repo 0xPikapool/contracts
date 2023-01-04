@@ -115,7 +115,7 @@ contract BidSignaturesTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD90
             bid.totalWeth,
             v,
             r,
-            s ^ r
+            s
         );
 
         vm.expectRevert(err);

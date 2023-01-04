@@ -16,6 +16,18 @@ error MintFailure();
 
 contract Settlement is BidSignatures {
 
+    /// @dev Struct of signature data for winning bids to be deconstructed and validated to mint NFTs
+    /// @param bid The winning bid fed to this Settlement contract by the Orchestrator
+    /// @param v ECDSA cryptographic parameter derived from digest hash and bidder privatekey
+    /// @param r ECDSA cryptographic parameter derived from digest hash and bidder privatekey
+    /// @param s ECDSA cryptographic parameter derived from digest hash and bidder privatekey
+    struct Signature {
+        Bid bid;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
+
     WETH public weth;
 
     /// @dev Maximum mint threshold amount to prevent excessive first-time token transfer costs
@@ -39,7 +51,7 @@ contract Settlement is BidSignatures {
     /// @param tip The tip per NFT offered by the bidder in order to win a mint in the auction
     /// @param totalWeth The total amount of WETH covered by this individual bid. Ie amount * (basePrice + tip)
     function settleFromSignature(
-        string calldata auctionName,
+        string memory auctionName,
         address auctionAddress,
         address bidder,
         uint256 amount,
@@ -49,7 +61,7 @@ contract Settlement is BidSignatures {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external {
+    ) public {
 
         if (amount > mintMax) revert ExcessAmount();
 
@@ -89,12 +101,27 @@ contract Settlement is BidSignatures {
         bool p = weth.transferFrom(bidder, address(this), totalWeth);
         if (!p) revert PaymentFailure();
 
+        // if (p) {} // do the below if weth transfer succeeds, without reverting on failures
         (bool r,) = auctionAddress.call(abi.encodeWithSignature("mint(address,uint256)", bidder, amount));
         if (!r) revert MintFailure();
     }
 
     /// @dev Function to be called by the Orchestrator following the conclusion of each auction
-    // todo
     // mark settleFromSignature as internal once this function is implemented
-    // function finalizeAuction(Bid[] memory bids) { for (uint256 i; i < bids.length; i++) settleFromSignature(bid.name bid.address bid.amount etc) }
+    function finalizeAuction(Signature[] memory signatures) external /* onlyOwner */{ 
+        for (uint256 i; i < signatures.length; i++) {
+            settleFromSignature(
+                signatures[i].bid.auctionName,
+                signatures[i].bid.auctionAddress,
+                signatures[i].bid.bidder,
+                signatures[i].bid.amount,
+                signatures[i].bid.basePrice,
+                signatures[i].bid.tip,
+                signatures[i].bid.totalWeth,
+                signatures[i].v,
+                signatures[i].r,
+                signatures[i].s
+            );
+        }
+    }
 }
