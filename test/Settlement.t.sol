@@ -20,8 +20,11 @@ contract SettlementTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C
     uint256 public priceInGweth;
     uint256 internal bidder1PrivateKey;
     uint256 internal bidder2PrivateKey;
+    uint256 internal bidder3PrivateKey;
     address internal bidder1;
     address internal bidder2;
+    address internal bidder3;
+    address internal mainnetWETH;
     BidSignatures.Bid bid1;
     BidSignatures.Bid bid2;
     BidSignatures.Bid bid3;
@@ -36,8 +39,9 @@ contract SettlementTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C
         name = "PikaExample";
         symbol = "PIKA";
         priceInGweth = 69;
+        mainnetWETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-        settlement = new Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 30);
+        settlement = new Settlement(mainnetWETH, 30);
         pikaExample = new Example721A(name, symbol, address(settlement), priceInGweth);
 
         // prepare the cow carcass private key with which to sign
@@ -58,6 +62,15 @@ contract SettlementTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C
         weth.deposit{ value: 1 ether }();
         assertEq(weth.balanceOf(bidder2), 1 ether);
 
+        // create new beefy bidder for third signature
+        bidder3PrivateKey = 0xBABE;
+        bidder3 = vm.addr(bidder3PrivateKey);
+        // seed cow bidder with 1 eth and wrap it to weth
+        vm.deal(bidder3, 1 ether);
+        vm.prank(bidder3);
+        weth.deposit{ value: 1 ether }();
+        assertEq(weth.balanceOf(bidder3), 1 ether);
+
         // prepare bids
         bid1 = BidSignatures.Bid({
             auctionName: "TestNFT",
@@ -75,6 +88,15 @@ contract SettlementTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C
             amount: mintMax,
             basePrice: priceInGweth,
             tip: 42
+        });
+
+        bid3 = BidSignatures.Bid({
+            auctionName: "TestNFT",
+            auctionAddress: address(pikaExample),
+            bidder: bidder3,
+            amount: mintMax,
+            basePrice: priceInGweth,
+            tip: 420
         });
     }
 
@@ -176,9 +198,96 @@ function test_settle() public {
             }
         }
     }
+
+    function testRevert_insufficientApproval() public {
+        // bid and finalize with no approval
+        bytes32 digest = settlement.hashTypedData(bid1);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
+        Signature memory signature1 = Signature({
+            bid: bid1,
+            v: v,
+            r: r,
+            s: s
+        });
+
+        Signature[] memory signature = new Signature[](1);
+        signature[0] = signature1;
+
+        settlement.finalizeAuction(signature);
+        // assert WETH transfer was not completed
+        assertEq(weth.balanceOf(address(settlement)), 0);
+        // assert NFT was not minted to bidder1
+        assertEq(pikaExample.balanceOf(bidder1), 0);
+
+        // bid and finalize with nonzero but insufficient approval
+        vm.prank(bidder1);
+        weth.approve(address(settlement), 5);
+        assertEq(weth.allowance(bidder1, address(settlement)), 5);
+
+        settlement.finalizeAuction(signature);
+        // assert WETH transfer was not completed
+        assertEq(weth.balanceOf(address(settlement)), 0);
+        // assert NFT was not minted to bidder1
+        assertEq(pikaExample.balanceOf(bidder1), 0);
+
+        // bid and finalize multiple signatures with one bid missing approval
+        uint256 totalWeth = bid1.amount * bid1.basePrice + bid1.tip;
+        // bidder1 approval
+        vm.prank(bidder1);
+        weth.approve(address(settlement), totalWeth);
+        assertEq(weth.allowance(bidder1, address(settlement)), totalWeth);
+        
+        // bidder2 does NOT provide sufficient approval
+        uint256 notEnough = 10;
+        vm.prank(bidder2);
+        weth.approve(address(settlement), notEnough);
+        assertEq(weth.allowance(bidder2, address(settlement)), notEnough);
+
+        bytes32 digest2 = settlement.hashTypedData(bid2);
+        (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(bidder2PrivateKey, digest2);
+        Signature memory signature2 = Signature({
+            bid: bid2,
+            v: v2,
+            r: r2,
+            s: s2
+        });
+
+        // bidder3 provides correct approval
+        uint256 totalWeth3 = bid3.amount * bid3.basePrice + bid3.tip;
+        vm.prank(bidder3);
+        weth.approve(address(settlement), totalWeth3);
+        assertEq(weth.allowance(bidder3, address(settlement)), totalWeth3);
+
+        bytes32 digest3 = settlement.hashTypedData(bid3);
+        (uint8 v3, bytes32 r3, bytes32 s3) = vm.sign(bidder3PrivateKey, digest3);
+        Signature memory signature3 = Signature({
+            bid: bid3,
+            v: v3,
+            r: r3,
+            s: s3
+        });
+
+        Signature[] memory signatures = new Signature[](3);
+        signatures[0] = signature1;
+        signatures[1] = signature2;
+        signatures[1] = signature3;
+        settlement.finalizeAuction(signatures);
+
+        // assert NFTs were minted to bidder1
+        assertEq(pikaExample.balanceOf(bidder1), bid1.amount);
+        // assert NFTs were NOT minted to bidder2
+        assertEq(pikaExample.balanceOf(bidder2), 0);
+        // assert NFTs were minted to bidder3
+        assertEq(pikaExample.balanceOf(bidder3), bid3.amount);
+
+        // assert correct NFT ownership
+        
+        
+        // assert WETH transfers were completed by bidder1, bidder2
+        // assertEq(weth.balanceOf(address(settlement)), 0);
+    }
 }
 
-//function to test revert due to missing approval
 //function to test single mint
 //function to test full 30 mint
 //function to test revert on 0 mint

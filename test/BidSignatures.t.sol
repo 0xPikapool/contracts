@@ -22,6 +22,7 @@ contract BidSignaturesTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD90
     string symbol;
     uint256 internal bidder1PrivateKey;
     address internal bidder1;
+    address internal mainnetWETH;
     bytes public err;
 
     // initialize test environment
@@ -29,8 +30,9 @@ contract BidSignaturesTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD90
         name = "PikaExample";
         symbol = "PIKA";
         priceInGweth = 69;
+        mainnetWETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-        settlement = new Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 30);
+        settlement = new Settlement(mainnetWETH, 30);
         pikaExample = new Example721A(name, symbol, address(settlement), priceInGweth);
 
         // prepare the cow carcass private key with which to sign
@@ -72,7 +74,7 @@ contract BidSignaturesTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD90
         assertTrue(settle);
     }
 
-    function testRevert_InvalidSignature() public {
+    function test_invalidSignature() public {
         bytes32 digest = hashTypedData(bid);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);

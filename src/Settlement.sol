@@ -102,13 +102,16 @@ contract Settlement is BidSignatures {
         uint256 tip
     ) internal {
         uint256 totalWithoutTip = amount * basePrice;
-        bool p = weth.transferFrom(bidder, address(this), totalWithoutTip + tip);
+        // check allowance before weth transfer to prevent reverts during batch settling
+        if (weth.allowance(bidder, address(this)) >= totalWithoutTip) {
+            bool p = weth.transferFrom(bidder, address(this), totalWithoutTip + tip);
 
-        // if weth transfer succeeds, unwrap weth to eth and pay for creator's NFT mint
-        // create a gas table for these steps as they add more gas overhead than they're worth
-        if (p) {
-            weth.withdraw(totalWithoutTip);
-            Pikapatible(payable(auctionAddress)).mint{ value: totalWithoutTip }(bidder, amount);
+            // if weth transfer succeeds, unwrap weth to eth and pay for creator's NFT mint
+            // create a gas table for these steps as they add more gas overhead than they're worth
+            if (p) {
+                weth.withdraw(totalWithoutTip);
+                Pikapatible(payable(auctionAddress)).mint{ value: totalWithoutTip }(bidder, amount);
+            }
         }
     }
 
