@@ -4,9 +4,6 @@ pragma solidity ^0.8.13;
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xKhepri and PikaPool Developers
 
-/// @dev Error to revert execution if ecrecover returns invalid signature originator
-error InvalidSignature();
-
 abstract contract BidSignatures {
 
     /// @dev Struct of bid data to be hashed and signed for meta-transactions. 
@@ -16,7 +13,6 @@ abstract contract BidSignatures {
     /// @param amount The number of assets being bid on.
     /// @param basePrice The base price per NFT set by the collection's creator
     /// @param tip The tip per NFT offered by the bidder in order to win a mint in the auction
-    /// @param totalWeth The total amount of WETH covered by this individual bid. Ie amount * (basePrice + tip)
     struct Bid {
         string auctionName;
         address auctionAddress;
@@ -24,12 +20,11 @@ abstract contract BidSignatures {
         uint256 amount;
         uint256 basePrice;
         uint256 tip;
-        uint256 totalWeth;
     }
 
     /// @dev The EIP-712 type hash for the Bid struct
     bytes32 internal constant BID_TYPE_HASH = 
-        keccak256("Bid(string auctionName,address auctionAddress,uint256 amount,uint256 basePrice,uint256 tip,uint256 totalWeth)"
+        keccak256("Bid(string auctionName,address auctionAddress,uint256 amount,uint256 basePrice,uint256 tip)"
     );
     
     /// @dev The EIP-712 domain type hash, required to derive domain separator
@@ -48,8 +43,7 @@ abstract contract BidSignatures {
 
     /// @dev Event emitted when a bid is signed.
     //todo
-    // event Signature(address indexed owner, bytes bidData)
-    // event revokeSignature()
+    // event Signature(address indexed owner, bytes bidData, bool revoked);
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(
@@ -73,8 +67,7 @@ abstract contract BidSignatures {
                 bid.bidder,
                 bid.amount,
                 bid.basePrice,
-                bid.tip,
-                bid.totalWeth
+                bid.tip
             )
         );
     }

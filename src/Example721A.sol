@@ -2,23 +2,25 @@
 pragma solidity ^0.8.13;
 
 import "ERC721A/ERC721A.sol";
-//import access control
+import "src/utils/Pikapatible.sol";
 
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xKhepri and PikaPool Developers
 
-contract Example721A is ERC721A {
+contract Example721A is ERC721A, Pikapatible {
 
-    error IncorrectPricePaid();
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        address _settlementContract, 
+        uint256 _priceInGweth
+    ) ERC721A(
+        _name,
+        _symbol
+    ) Pikapatible(_settlementContract, _priceInGweth)
+    {}
 
-    uint256 priceInGweth;
-
-    constructor(uint256 _priceInGweth) ERC721A("PikaExample", "PIKA") {
-        //owner = settlement;
-        priceInGweth = _priceInGweth;
-    }
-
-    function mint(address to, uint256 amount) external /* onlyOwner */ {
-        _mint(to, amount);
-    }
+    // function mint(address to, uint256 amount) external /* onlyOwner(=settlement.sol) */ {
+    //     _mint(to, amount);
+    // }
 }

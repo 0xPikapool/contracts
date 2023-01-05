@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "solmate/tokens/WETH.sol";
 import "./utils/BidSignatures.sol";
+import "./utils/Pikapatible.sol";
 
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xKhepri and PikaPool Developers
@@ -49,7 +50,6 @@ contract Settlement is BidSignatures {
     /// @param amount The number of assets being bid on.
     /// @param basePrice The base price per NFT set by the collection's creator
     /// @param tip The tip per NFT offered by the bidder in order to win a mint in the auction
-    /// @param totalWeth The total amount of WETH covered by this individual bid. Ie amount * (basePrice + tip)
     function settleFromSignature(
         string memory auctionName,
         address auctionAddress,
@@ -57,11 +57,10 @@ contract Settlement is BidSignatures {
         uint256 amount,
         uint256 basePrice,
         uint256 tip,
-        uint256 totalWeth,
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public {
+    ) internal view returns (bool) {
 
         if (amount > mintMax) revert ExcessAmount();
 
@@ -79,8 +78,7 @@ contract Settlement is BidSignatures {
                             bidder,
                             amount,
                             basePrice,
-                            tip,
-                            totalWeth
+                            tip
                         )
                     )
                 )
@@ -91,37 +89,60 @@ contract Settlement is BidSignatures {
         );
 
         // handle signature error cases
-        if (recovered == address(0) || recovered != bidder) revert InvalidSignature();
-
-        _settle(auctionAddress, bidder, amount, totalWeth);
+        if (recovered == address(0) || recovered != bidder) return false;
+        else return true;
     }
     
     /// @dev Internal function that finalizes the settlements upon verification of signatures
-    function _settle(address auctionAddress, address bidder, uint256 amount, uint256 totalWeth) internal {
-        bool p = weth.transferFrom(bidder, address(this), totalWeth);
-        if (!p) revert PaymentFailure();
+    function _settle(
+        address auctionAddress, 
+        address bidder, 
+        uint256 amount, 
+        uint256 basePrice,
+        uint256 tip
+    ) internal {
+        uint256 totalWithoutTip = amount * basePrice;
+        bool p = weth.transferFrom(bidder, address(this), totalWithoutTip + tip);
 
-        // if (p) {} // do the below if weth transfer succeeds, without reverting on failures
-        (bool r,) = auctionAddress.call(abi.encodeWithSignature("mint(address,uint256)", bidder, amount));
-        if (!r) revert MintFailure();
+        // if weth transfer succeeds, unwrap weth to eth and pay for creator's NFT mint
+        // create a gas table for these steps as they add more gas overhead than they're worth
+        if (p) {
+            weth.withdraw(totalWithoutTip);
+            Pikapatible(payable(auctionAddress)).mint{ value: totalWithoutTip }(bidder, amount);
+        }
+
+        // (bool r,) = auctionAddress.call(abi.encodeWithSignature("mint(address,uint256)", bidder, amount));
+        // if (!r) revert MintFailure();
     }
 
     /// @dev Function to be called by the Orchestrator following the conclusion of each auction
-    // mark settleFromSignature as internal once this function is implemented
-    function finalizeAuction(Signature[] memory signatures) external /* onlyOwner */{ 
+    /// @notice Once testnet deployments are complete and testing has been completed by the team's various addresses, restrict this function to Orchestrator only via access control
+    function finalizeAuction(Signature[] memory signatures) external /* onlyOwner(=orchestrator) */ { 
         for (uint256 i; i < signatures.length; i++) {
-            settleFromSignature(
+            bool settle = settleFromSignature(
                 signatures[i].bid.auctionName,
-                signatures[i].bid.auctionAddress,
+                payable(signatures[i].bid.auctionAddress),
                 signatures[i].bid.bidder,
                 signatures[i].bid.amount,
                 signatures[i].bid.basePrice,
                 signatures[i].bid.tip,
-                signatures[i].bid.totalWeth,
                 signatures[i].v,
                 signatures[i].r,
                 signatures[i].s
             );
+            if (settle) { 
+                _settle(
+                    signatures[i].bid.auctionAddress, 
+                    signatures[i].bid.bidder, 
+                    signatures[i].bid.amount, 
+                    signatures[i].bid.basePrice,
+                    signatures[i].bid.tip
+                );
+            }
         }
+
+        // !! send batched tips once all mints have succeeded
     }
+
+    receive() external payable {}
 }
