@@ -14,13 +14,5 @@ contract Example721A is ERC721A, Pikapatible {
         string memory _symbol,
         address _settlementContract, 
         uint256 _priceInGweth
-    ) ERC721A(
-        _name,
-        _symbol
-    ) Pikapatible(_settlementContract, _priceInGweth)
-    {}
-
-    // function mint(address to, uint256 amount) external /* onlyOwner(=settlement.sol) */ {
-    //     _mint(to, amount);
-    // }
+    ) ERC721A(_name,_symbol) Pikapatible(_settlementContract,_priceInGweth) {}
 }
