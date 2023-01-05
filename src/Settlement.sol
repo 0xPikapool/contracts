@@ -110,9 +110,6 @@ contract Settlement is BidSignatures {
             weth.withdraw(totalWithoutTip);
             Pikapatible(payable(auctionAddress)).mint{ value: totalWithoutTip }(bidder, amount);
         }
-
-        // (bool r,) = auctionAddress.call(abi.encodeWithSignature("mint(address,uint256)", bidder, amount));
-        // if (!r) revert MintFailure();
     }
 
     /// @dev Function to be called by the Orchestrator following the conclusion of each auction
@@ -140,8 +137,6 @@ contract Settlement is BidSignatures {
                 );
             }
         }
-
-        // !! send batched tips once all mints have succeeded
     }
 
     receive() external payable {}
