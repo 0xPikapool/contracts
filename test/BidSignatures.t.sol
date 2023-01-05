@@ -72,7 +72,7 @@ contract BidSignaturesTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD90
         assertTrue(settle);
     }
 
-    function test_InvalidSignature() public {
+    function testRevert_InvalidSignature() public {
         bytes32 digest = hashTypedData(bid);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
