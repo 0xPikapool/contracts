@@ -94,7 +94,7 @@ contract SettlementTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C
             auctionName: "TestNFT",
             auctionAddress: address(pikaExample),
             bidder: bidder3,
-            amount: mintMax,
+            amount: 12,
             basePrice: priceInGweth,
             tip: 420
         });
@@ -199,7 +199,7 @@ function test_settle() public {
         }
     }
 
-    function testRevert_insufficientApproval() public {
+    function test_skipInsufficientApprovals() public {
         // bid and finalize with no approval
         bytes32 digest = settlement.hashTypedData(bid1);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
@@ -281,14 +281,20 @@ function test_settle() public {
         assertEq(pikaExample.balanceOf(bidder3), bid3.amount);
 
         // assert correct NFT ownership
-        
+        for (uint i; i < pikaExample.totalSupply(); ++i) {
+            address recipient = pikaExample.ownerOf(i);
+            if (i < bid1.amount) {
+                assertEq(recipient, bidder1);
+            } else {
+                assertEq(recipient, bidder3);
+            }
+        }
         
         // assert WETH transfers were completed by bidder1, bidder2
-        // assertEq(weth.balanceOf(address(settlement)), 0);
+        uint256 remainingWeth =  bid1.tip + bid3.tip;
+        assertEq(weth.balanceOf(address(settlement)), remainingWeth);
     }
 }
 
-//function to test single mint
-//function to test full 30 mint
-//function to test revert on 0 mint
-//function to test revert on 31 mints
+//function to test no mint on 0 amount
+//function to test no mint excessive amount on 31 mints

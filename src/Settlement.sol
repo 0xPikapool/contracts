@@ -8,8 +8,6 @@ import "./utils/Pikapatible.sol";
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xKhepri and PikaPool Developers
 
-/// @dev Error thrown at a preset threshold to prevent excessive first-time token transfer costs
-error ExcessAmount();
 /// @dev Error thrown if WETH transferFrom() call fails, implying the bidder's payment failed
 error PaymentFailure();
 /// @dev Error thrown if a mint fails
@@ -29,14 +27,12 @@ contract Settlement is BidSignatures {
         bytes32 s;
     }
 
+    /// @dev WETH contract for this chain, set in constructor
     WETH public weth;
 
     /// @dev Maximum mint threshold amount to prevent excessive first-time token transfer costs
     /// @dev Stored in storage for gas optimization (as opposed to repeated mstores)
     uint256 public mintMax;
-
-    /// @dev Auction registry enumerated by index; could be deprecated in favor of token addresses if offchain recordkeeping is sufficient
-    mapping(uint => address) public auctionIds;
 
     constructor(address _wethAddress, uint256 _mintMax) {
         weth = WETH(payable(_wethAddress));
@@ -61,8 +57,6 @@ contract Settlement is BidSignatures {
         bytes32 r,
         bytes32 s
     ) internal view returns (bool) {
-
-        if (amount > mintMax) revert ExcessAmount();
 
         address recovered = ecrecover(
             keccak256(
@@ -119,25 +113,27 @@ contract Settlement is BidSignatures {
     /// @notice Once testnet deployments are complete and testing has been completed by the team's various addresses, restrict this function to Orchestrator only via access control
     function finalizeAuction(Signature[] memory signatures) external /* onlyOwner(=orchestrator) */ { 
         for (uint256 i; i < signatures.length; i++) {
-            bool settle = settleFromSignature(
-                signatures[i].bid.auctionName,
-                payable(signatures[i].bid.auctionAddress),
-                signatures[i].bid.bidder,
-                signatures[i].bid.amount,
-                signatures[i].bid.basePrice,
-                signatures[i].bid.tip,
-                signatures[i].v,
-                signatures[i].r,
-                signatures[i].s
-            );
-            if (settle) { 
-                _settle(
-                    signatures[i].bid.auctionAddress, 
-                    signatures[i].bid.bidder, 
-                    signatures[i].bid.amount, 
+            if (signatures[i].bid.amount <= mintMax) {
+                bool settle = settleFromSignature(
+                    signatures[i].bid.auctionName,
+                    payable(signatures[i].bid.auctionAddress),
+                    signatures[i].bid.bidder,
+                    signatures[i].bid.amount,
                     signatures[i].bid.basePrice,
-                    signatures[i].bid.tip
+                    signatures[i].bid.tip,
+                    signatures[i].v,
+                    signatures[i].r,
+                    signatures[i].s
                 );
+                if (settle) { 
+                    _settle(
+                        signatures[i].bid.auctionAddress, 
+                        signatures[i].bid.bidder, 
+                        signatures[i].bid.amount, 
+                        signatures[i].bid.basePrice,
+                        signatures[i].bid.tip
+                    );
+                }
             }
         }
     }
