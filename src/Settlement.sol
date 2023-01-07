@@ -201,6 +201,8 @@ contract Settlement is BidSignatures {
             unchecked {
                 ++i;
             }
+
+            // emit batched settlement event with info on successful mints/failed ones & eth transfered
         }
     }
 
