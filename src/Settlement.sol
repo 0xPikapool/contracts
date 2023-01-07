@@ -112,7 +112,8 @@ contract Settlement is BidSignatures {
     /// @dev Function to be called by the Orchestrator following the conclusion of each auction
     /// @notice Once testnet deployments are complete and testing has been completed by the team's various addresses, restrict this function to Orchestrator only via access control
     function finalizeAuction(Signature[] memory signatures) external /* onlyOwner(=orchestrator) */ { 
-        for (uint256 i; i < signatures.length; i++) {
+        // uint256 length = signatures.length; // for when signatures is moved to calldata
+        for (uint256 i; i < signatures.length; ) {
             if (signatures[i].bid.amount <= mintMax) {
                 bool settle = settleFromSignature(
                     signatures[i].bid.auctionName,
@@ -134,6 +135,10 @@ contract Settlement is BidSignatures {
                         signatures[i].bid.tip
                     );
                 }
+            }
+            
+            unchecked {
+                ++i;
             }
         }
     }

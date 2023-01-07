@@ -58,7 +58,7 @@ contract BidSignaturesTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD90
         // extracted the settleFromSignature() logic without payment to isolate and verify signature functionality
         uint256 amount = bid.amount;
 
-        if (bid.amount <= mintMax) {
+        if (amount <= mintMax) {
             bool settle = settleFromSignature(
                 bid.auctionName,
                 bid.auctionAddress,

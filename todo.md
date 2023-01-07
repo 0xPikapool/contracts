@@ -4,6 +4,7 @@ refactor domain separator logic to be chain agnostic via internal computer and p
 
 !!!
 convert memory parameters to calldata (auctionName, Signature[] struct)
+test for signature malleability
 
 !! send batched tips once all mints have succeeded
 
@@ -11,5 +12,4 @@ gas optimizations:
     -replace keccak256 computation for EIP-712 variables
 develop gas table to show why unwrapping weth to pay for creator mint() function is much more gas intensive than staying in weth
 
-delete InvalidSignature() error ?
 
