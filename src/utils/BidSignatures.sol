@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 /// @title PikaPool Protocol Settlement Contract
-/// @author 0xKhepri and PikaPool Developers
+/// @author 0xKhepri, 0xBraixen and PikaPool Developers
 
 abstract contract BidSignatures {
 
