@@ -30,15 +30,6 @@ abstract contract BidSignatures is Test {
         address verifyingContract;
     }
 
-    // struct Mail {
-    //     string auctionName;
-    //     address auctionAddress;
-    //     address bidder;
-    //     uint256 amount;
-    //     uint256 basePrice;
-    //     uint256 tip;
-    // }
-
     bytes32 constant EIP712DOMAIN_TYPEHASH =
         keccak256(
             "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
@@ -48,14 +39,6 @@ abstract contract BidSignatures is Test {
         keccak256(
             "Bid(string auctionName,address auctionAddress,address bidder,uint256 amount,uint256 basePrice,uint256 tip)"
         );
-
-    // bytes32 DOMAIN_SEPARATOR_MAIL;
-
-    /// @dev The EIP-712 type hash for the Bid struct
-    // bytes32 internal constant BID_TYPE_HASH =
-    //     keccak256(
-    //         "Bid(string auctionName,address auctionAddress,uint256 amount,uint256 basePrice,uint256 tip)"
-    //     );
 
     /// @dev The EIP-712 domain type hash, required to derive domain separator
     bytes32 internal constant DOMAIN_TYPE_HASH =
@@ -86,14 +69,6 @@ abstract contract BidSignatures is Test {
                 address(this)
             )
         );
-        // DOMAIN_SEPARATOR_MAIL = hash(
-        //     EIP712Domain({
-        //         name: "Ether Mail",
-        //         version: "1",
-        //         chainId: 1,
-        //         verifyingContract: 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC
-        //     })
-        // );
     }
 
     function hash(EIP712Domain memory eip712Domain)
@@ -123,25 +98,17 @@ abstract contract BidSignatures is Test {
             basePrice: 69,
             tip: 420
         });
-        // uint8 v = 28;
-        // bytes32 r = 0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d;
-        // bytes32 s = 0x07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b91562;
 
         console.logString("maikkklhash");
         console.logBytes32(hash(bid));
-        // assert(
-        //     DOMAIN_SEPARATOR ==
-        //         0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090f
-        // );
         assert(
             hash(bid) ==
                 0xa68720e40b22ac61392ad759e2bf5c266c18eb0b0af58b861a7f119a21dc6e53
         );
-        // assert(verify(mail, v, r, s));
         return true;
     }
 
-    function hash(Bid memory bid) internal pure returns (bytes32) {
+    function hash(Bid memory bid) public pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(
@@ -157,12 +124,12 @@ abstract contract BidSignatures is Test {
     }
 
     /// @dev Function to compute hash of a bid
-    function hashBid(Bid memory bid) internal pure returns (bytes32) {
+    function hashBid(Bid memory bid) public pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(
                     BID_TYPE_HASH,
-                    bid.auctionName,
+                    keccak256(bytes(bid.auctionName)),
                     bid.auctionAddress,
                     bid.bidder,
                     bid.amount,

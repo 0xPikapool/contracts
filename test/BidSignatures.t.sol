@@ -49,16 +49,44 @@ contract BidSignaturesTest is
         // prepare the bid to be used
         bid = BidSignatures.Bid({
             auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
-            bidder: bidder1,
-            amount: mintMax,
-            basePrice: priceInGweth,
-            tip: 69
+            auctionAddress: address(0xDD23B2f4cc41914a6BDa77310126251a2556B865),
+            bidder: address(0x36bCaEE2F1f6C185f91608C7802f6Fc4E8bD9f1d),
+            amount: 5,
+            basePrice: 69,
+            tip: 420
         });
+
+        // Bid memory bid = Bid({
+        //     auctionName: "TestNFT",
+        //     auctionAddress: address(0xDD23B2f4cc41914a6BDa77310126251a2556B865),
+        //     bidder: address(0x36bCaEE2F1f6C185f91608C7802f6Fc4E8bD9f1d),
+        //     amount: 5,
+        //     basePrice: 69,
+        //     tip: 420
+        // });
     }
 
     function test_mail_example() public {
+        // Bid memory bid = Bid({
+        //     auctionName: "TestNFT",
+        //     auctionAddress: address(0xDD23B2f4cc41914a6BDa77310126251a2556B865),
+        //     bidder: address(0x36bCaEE2F1f6C185f91608C7802f6Fc4E8bD9f1d),
+        //     amount: 5,
+        //     basePrice: 69,
+        //     tip: 420
+        // });
+
+        console.logString("test_auction_name");
+        console.logString(bid.auctionName);
+
         bool success = BidSignatures.test();
+
+        bytes32 hashh = BidSignatures.hash(bid);
+        bytes32 hashish = BidSignatures.hashBid(bid);
+
+        console.logBytes32(hashh);
+        console.logBytes32(hashish);
+
         assert(success);
     }
 
