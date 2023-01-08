@@ -71,23 +71,6 @@ abstract contract BidSignatures is Test {
         );
     }
 
-    function hash(EIP712Domain memory eip712Domain)
-        internal
-        pure
-        returns (bytes32)
-    {
-        return
-            keccak256(
-                abi.encode(
-                    EIP712DOMAIN_TYPEHASH,
-                    keccak256(bytes(eip712Domain.name)),
-                    keccak256(bytes(eip712Domain.version)),
-                    eip712Domain.chainId,
-                    eip712Domain.verifyingContract
-                )
-            );
-    }
-
     function test() public view returns (bool) {
         // Example signed message
         Bid memory bid = Bid({
@@ -100,27 +83,12 @@ abstract contract BidSignatures is Test {
         });
 
         console.logString("maikkklhash");
-        console.logBytes32(hash(bid));
+        console.logBytes32(hashBid(bid));
         assert(
-            hash(bid) ==
+            hashBid(bid) ==
                 0xa68720e40b22ac61392ad759e2bf5c266c18eb0b0af58b861a7f119a21dc6e53
         );
         return true;
-    }
-
-    function hash(Bid memory bid) public pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    BID_TYPE_HASH,
-                    keccak256(bytes(bid.auctionName)),
-                    bid.auctionAddress,
-                    bid.bidder,
-                    bid.amount,
-                    bid.basePrice,
-                    bid.tip
-                )
-            );
     }
 
     /// @dev Function to compute hash of a bid
