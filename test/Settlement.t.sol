@@ -144,7 +144,7 @@ function test_settle() public {
         assertEq(weth.balanceOf(address(this)), bid1.tip);
     }
 
-    function test_finalizeAuction() public {
+    function test_settleTransactions() public {
         // calculate totalWeth to pay
         uint256 totalWeth = bid1.amount * bid1.basePrice + bid1.tip;
         // bidder1 approves totalWeth amount to weth contract
@@ -181,7 +181,7 @@ function test_settle() public {
         signatures[1] = signature2;
 
         // feed the signatures into Settlement.sol
-        settlement.finalizeAuction(signatures);
+        settlement.settleTransactions(signatures);
         assertEq(pikaExample.balanceOf(bidder1), bid1.amount);
         assertEq(pikaExample.balanceOf(bidder2), bid2.amount);
         assertEq(weth.balanceOf(address(settlement)), bid1.tip + bid2.tip);
@@ -213,7 +213,7 @@ function test_settle() public {
         Signature[] memory signature = new Signature[](1);
         signature[0] = signature1;
 
-        settlement.finalizeAuction(signature);
+        settlement.settleTransactions(signature);
         // assert WETH transfer was not completed
         assertEq(weth.balanceOf(address(settlement)), 0);
         // assert NFT was not minted to bidder1
@@ -224,7 +224,7 @@ function test_settle() public {
         weth.approve(address(settlement), 5);
         assertEq(weth.allowance(bidder1, address(settlement)), 5);
 
-        settlement.finalizeAuction(signature);
+        settlement.settleTransactions(signature);
         // assert WETH transfer was not completed
         assertEq(weth.balanceOf(address(settlement)), 0);
         // assert NFT was not minted to bidder1
@@ -271,7 +271,7 @@ function test_settle() public {
         signatures[0] = signature1;
         signatures[1] = signature2;
         signatures[1] = signature3;
-        settlement.finalizeAuction(signatures);
+        settlement.settleTransactions(signatures);
 
         // assert NFTs were minted to bidder1
         assertEq(pikaExample.balanceOf(bidder1), bid1.amount);
@@ -294,7 +294,9 @@ function test_settle() public {
         uint256 remainingWeth =  bid1.tip + bid3.tip;
         assertEq(weth.balanceOf(address(settlement)), remainingWeth);
     }
-}
 
-//function to test no mint on 0 amount
-//function to test no mint excessive amount on 31 mints
+    //function to test no mint on 0 amount
+    //function to test no mint excessive amount on 31 mints
+
+    //function to test event emission correctness
+}

@@ -1,0 +1,24 @@
+
+{
+    "name": "PikaPool Pikapatible ExampleERC721A",
+    "description": "Example ERC721A with Pikapatible plugin for PikaPool compatibility",
+    "image": "ar://S9YTA_MRtPOL_zg2UCwgHFS3ArqAX3OVXWO71ykzowA",
+    "attributes": [
+        {
+            "trait_type": "PikaMaster", 
+            "value": "Ash Keccakum"
+        }, 
+        {
+            "trait_type": "Pikachu",
+            "value": "0xCrasherWake"
+        },
+        {
+            "trait_type": "Raichu",
+            "value": "0xBraixen"
+        },
+        {
+            "trait_type": "Pichu",
+            "value": "0xKhepri"
+        }
+    ]
+}

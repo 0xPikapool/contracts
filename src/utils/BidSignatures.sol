@@ -33,10 +33,10 @@ abstract contract BidSignatures {
     );
 
     /// @dev The EIP-712 domain name, required to derive domain separator
-    bytes32 internal constant DOMAIN_NAME = keccak256("PikaPool");
+    bytes32 internal constant DOMAIN_NAME = keccak256("PikaPool Auction");
 
     /// @dev The EIP-712 domain version, required to derive domain separator
-    bytes32 internal constant DOMAIN_VERSION = keccak256("v0");
+    bytes32 internal constant DOMAIN_VERSION = keccak256("1");
 
     /// @dev The EIP-712 domain separator, required to prevent replay attacks across networks
     bytes32 public immutable DOMAIN_SEPARATOR;
@@ -51,7 +51,7 @@ abstract contract BidSignatures {
                 DOMAIN_TYPE_HASH,
                 DOMAIN_NAME,
                 DOMAIN_VERSION,
-                block.chainid,
+                16, //block.chainid,
                 address(this)
             )
         );

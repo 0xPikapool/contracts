@@ -95,6 +95,8 @@ contract Settlement is BidSignatures {
     /// @dev Stored in storage for gas optimization (as opposed to repeated mstores)
     uint256 public mintMax;
 
+    event SettlementFailure(address indexed bidder, bytes indexed reason);
+
     constructor(address _wethAddress, uint256 _mintMax) {
         weth = WETH(payable(_wethAddress));
         mintMax = _mintMax;
@@ -166,7 +168,11 @@ contract Settlement is BidSignatures {
             if (p) {
                 weth.withdraw(totalWithoutTip);
                 Pikapatible(payable(auctionAddress)).mint{ value: totalWithoutTip }(bidder, amount);
+            } else {
+                emit SettlementFailure(bidder, bytes("Payment Failed"));
             }
+        } else {
+            emit SettlementFailure(bidder, bytes("Approve WETH"));
         }
     }
 
@@ -195,15 +201,17 @@ contract Settlement is BidSignatures {
                         signatures[i].bid.basePrice,
                         signatures[i].bid.tip
                     );
+                } else {
+                    emit SettlementFailure(signatures[i].bid.bidder, bytes("Invalid Sig"));
                 }
+            } else {
+                emit SettlementFailure(signatures[i].bid.bidder, bytes("Exceeds MintMax"));
             }
-            
+
             unchecked {
                 ++i;
             }
-
-            // emit batched settlement event with info on successful mints/failed ones & eth transfered
-        }
+        }        
     }
 
     receive() external payable {}

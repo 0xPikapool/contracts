@@ -12,4 +12,4 @@ gas optimizations:
     -replace keccak256 computation for EIP-712 variables
 develop gas table to show why unwrapping weth to pay for creator mint() function is much more gas intensive than staying in weth
 
-
+add Owned to Settlement.sol so that finalizeAuction may only be called by the owner (once orchestrator is finalized and address set)
