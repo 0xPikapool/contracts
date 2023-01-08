@@ -30,32 +30,32 @@ abstract contract BidSignatures is Test {
         address verifyingContract;
     }
 
-    struct Mail {
-        string auctionName;
-        address auctionAddress;
-        address bidder;
-        uint256 amount;
-        uint256 basePrice;
-        uint256 tip;
-    }
+    // struct Mail {
+    //     string auctionName;
+    //     address auctionAddress;
+    //     address bidder;
+    //     uint256 amount;
+    //     uint256 basePrice;
+    //     uint256 tip;
+    // }
 
     bytes32 constant EIP712DOMAIN_TYPEHASH =
         keccak256(
             "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
         );
 
-    bytes32 constant MAIL_TYPEHASH =
+    bytes32 constant BID_TYPE_HASH =
         keccak256(
             "Bid(string auctionName,address auctionAddress,address bidder,uint256 amount,uint256 basePrice,uint256 tip)"
         );
 
-    bytes32 DOMAIN_SEPARATOR_MAIL;
+    // bytes32 DOMAIN_SEPARATOR_MAIL;
 
     /// @dev The EIP-712 type hash for the Bid struct
-    bytes32 internal constant BID_TYPE_HASH =
-        keccak256(
-            "Bid(string auctionName,address auctionAddress,uint256 amount,uint256 basePrice,uint256 tip)"
-        );
+    // bytes32 internal constant BID_TYPE_HASH =
+    //     keccak256(
+    //         "Bid(string auctionName,address auctionAddress,uint256 amount,uint256 basePrice,uint256 tip)"
+    //     );
 
     /// @dev The EIP-712 domain type hash, required to derive domain separator
     bytes32 internal constant DOMAIN_TYPE_HASH =
@@ -86,14 +86,14 @@ abstract contract BidSignatures is Test {
                 address(this)
             )
         );
-        DOMAIN_SEPARATOR_MAIL = hash(
-            EIP712Domain({
-                name: "Ether Mail",
-                version: "1",
-                chainId: 1,
-                verifyingContract: 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC
-            })
-        );
+        // DOMAIN_SEPARATOR_MAIL = hash(
+        //     EIP712Domain({
+        //         name: "Ether Mail",
+        //         version: "1",
+        //         chainId: 1,
+        //         verifyingContract: 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC
+        //     })
+        // );
     }
 
     function hash(EIP712Domain memory eip712Domain)
@@ -115,7 +115,7 @@ abstract contract BidSignatures is Test {
 
     function test() public view returns (bool) {
         // Example signed message
-        Mail memory mail = Mail({
+        Bid memory bid = Bid({
             auctionName: "TestNFT",
             auctionAddress: address(0xDD23B2f4cc41914a6BDa77310126251a2556B865),
             bidder: address(0x36bCaEE2F1f6C185f91608C7802f6Fc4E8bD9f1d),
@@ -128,30 +128,30 @@ abstract contract BidSignatures is Test {
         // bytes32 s = 0x07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b91562;
 
         console.logString("maikkklhash");
-        console.logBytes32(hash(mail));
+        console.logBytes32(hash(bid));
+        // assert(
+        //     DOMAIN_SEPARATOR ==
+        //         0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090f
+        // );
         assert(
-            DOMAIN_SEPARATOR_MAIL ==
-                0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090f
-        );
-        assert(
-            hash(mail) ==
+            hash(bid) ==
                 0xa68720e40b22ac61392ad759e2bf5c266c18eb0b0af58b861a7f119a21dc6e53
         );
         // assert(verify(mail, v, r, s));
         return true;
     }
 
-    function hash(Mail memory mail) internal pure returns (bytes32) {
+    function hash(Bid memory bid) internal pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(
-                    MAIL_TYPEHASH,
-                    keccak256(bytes(mail.auctionName)),
-                    mail.auctionAddress,
-                    mail.bidder,
-                    mail.amount,
-                    mail.basePrice,
-                    mail.tip
+                    BID_TYPE_HASH,
+                    keccak256(bytes(bid.auctionName)),
+                    bid.auctionAddress,
+                    bid.bidder,
+                    bid.amount,
+                    bid.basePrice,
+                    bid.tip
                 )
             );
     }
