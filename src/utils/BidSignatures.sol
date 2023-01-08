@@ -51,7 +51,7 @@ abstract contract BidSignatures {
                 DOMAIN_TYPE_HASH,
                 DOMAIN_NAME,
                 DOMAIN_VERSION,
-                16, //block.chainid,
+                block.chainid,
                 address(this)
             )
         );
