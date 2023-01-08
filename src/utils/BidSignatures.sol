@@ -47,7 +47,7 @@ abstract contract BidSignatures is Test {
         );
 
     /// @dev The EIP-712 domain name, required to derive domain separator
-    bytes32 internal constant DOMAIN_NAME = keccak256("PikaPool Auction");
+    bytes32 internal constant DOMAIN_NAME = keccak256("Pikapool Auction");
 
     /// @dev The EIP-712 domain version, required to derive domain separator
     bytes32 internal constant DOMAIN_VERSION = keccak256("1");
@@ -69,26 +69,6 @@ abstract contract BidSignatures is Test {
                 address(this)
             )
         );
-    }
-
-    function test() public view returns (bool) {
-        // Example signed message
-        Bid memory bid = Bid({
-            auctionName: "TestNFT",
-            auctionAddress: address(0xDD23B2f4cc41914a6BDa77310126251a2556B865),
-            bidder: address(0x36bCaEE2F1f6C185f91608C7802f6Fc4E8bD9f1d),
-            amount: 5,
-            basePrice: 69,
-            tip: 420
-        });
-
-        console.logString("maikkklhash");
-        console.logBytes32(hashBid(bid));
-        assert(
-            hashBid(bid) ==
-                0xa68720e40b22ac61392ad759e2bf5c266c18eb0b0af58b861a7f119a21dc6e53
-        );
-        return true;
     }
 
     /// @dev Function to compute hash of a bid

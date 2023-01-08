@@ -48,6 +48,26 @@ contract BidSignaturesTest is
 
         // prepare the bid to be used
         bid = BidSignatures.Bid({
+            auctionName: name,
+            auctionAddress: address(pikaExample),
+            bidder: bidder1,
+            amount: mintMax,
+            basePrice: priceInGweth,
+            tip: 69
+        });
+    }
+
+    function test_example_bid() public {
+        // Settlement Address and chainId are from the DOMAIN_SEPARATOR
+        // are used in determining the hash, so make sure they match the
+        // expected values here
+        assert(
+            address(settlement) ==
+                address(0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f)
+        );
+        assert(block.chainid == 31337);
+
+        Bid memory bid = Bid({
             auctionName: "TestNFT",
             auctionAddress: address(0xDD23B2f4cc41914a6BDa77310126251a2556B865),
             bidder: address(0x36bCaEE2F1f6C185f91608C7802f6Fc4E8bD9f1d),
@@ -55,172 +75,176 @@ contract BidSignaturesTest is
             basePrice: 69,
             tip: 420
         });
+
+        bytes32 ds = settlement.DOMAIN_SEPARATOR();
+        assert(
+            ds ==
+                0x18306b2971eca0ce9ff1e0da35bba87fd0039f43ab55f13399c9511bb2deb8bc
+        );
+        assert(
+            settlement.hashBid(bid) ==
+                0xa68720e40b22ac61392ad759e2bf5c266c18eb0b0af58b861a7f119a21dc6e53
+        );
+        assert(
+            settlement.hashTypedData(bid) ==
+                0x2a7503ca8eb3ae96c121dd7c847663564727b6b0e49b49a97c4a3476ddb3ede1
+        );
     }
 
-    function test_mail_example() public {
-        bool success = BidSignatures.test();
+    function test_settleFromSignature() public {
+        bytes32 digest = hashTypedData(bid);
 
-        bytes32 hashish = BidSignatures.hashBid(bid);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
 
-        console.logBytes32(hashish);
+        // extracted the settleFromSignature() logic without payment to isolate and verify signature functionality
+        uint256 amount = bid.amount;
 
-        assert(success);
+        if (amount <= mintMax) {
+            bool settle = settleFromSignature(
+                bid.auctionName,
+                bid.auctionAddress,
+                bid.bidder,
+                bid.amount,
+                bid.basePrice,
+                bid.tip,
+                v,
+                r,
+                s
+            );
+            assertTrue(settle);
+        }
     }
 
-    // function test_settleFromSignature() public {
-    //     bytes32 digest = hashTypedData(bid);
+    function test_invalidSignature() public {
+        bytes32 digest = hashTypedData(bid);
 
-    //     (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
 
-    //     // extracted the settleFromSignature() logic without payment to isolate and verify signature functionality
-    //     uint256 amount = bid.amount;
+        bool a;
+        // provide signature data using wrong auctionName
+        a = settleFromSignature(
+            "Hello World",
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.basePrice,
+            bid.tip,
+            v,
+            r,
+            s
+        );
+        assertFalse(a);
 
-    //     if (amount <= mintMax) {
-    //         bool settle = settleFromSignature(
-    //             bid.auctionName,
-    //             bid.auctionAddress,
-    //             bid.bidder,
-    //             bid.amount,
-    //             bid.basePrice,
-    //             bid.tip,
-    //             v,
-    //             r,
-    //             s
-    //         );
-    //         assertTrue(settle);
-    //     }
-    // }
+        // provide signature data using wrong NFT mint address (address(this) != bidder1)
+        a = settleFromSignature(
+            bid.auctionName,
+            address(0xbeef),
+            bid.bidder,
+            bid.amount,
+            bid.basePrice,
+            bid.tip,
+            v,
+            r,
+            s
+        );
+        assertFalse(a);
 
-    // function test_invalidSignature() public {
-    //     bytes32 digest = hashTypedData(bid);
+        // provide signature data using wrong bidder address (bidder1 != address(this))
+        a = settleFromSignature(
+            bid.auctionName,
+            bid.auctionAddress,
+            address(this),
+            bid.amount,
+            bid.basePrice,
+            bid.tip,
+            v,
+            r,
+            s
+        );
+        assertFalse(a);
 
-    //     (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
+        // provide signature data using wrong NFT mint amount (68 != 69)
+        a = settleFromSignature(
+            bid.auctionName,
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount -= 1,
+            bid.basePrice,
+            bid.tip,
+            v,
+            r,
+            s
+        );
+        assertFalse(a);
 
-    //     bool a;
-    //     // provide signature data using wrong auctionName
-    //     a = settleFromSignature(
-    //         "Hello World",
-    //         bid.auctionAddress,
-    //         bid.bidder,
-    //         bid.amount,
-    //         bid.basePrice,
-    //         bid.tip,
-    //         v,
-    //         r,
-    //         s
-    //     );
-    //     assertFalse(a);
+        // provide signature data using wrong basePrice
+        a = settleFromSignature(
+            bid.auctionName,
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.basePrice -= 1,
+            bid.tip,
+            v,
+            r,
+            s
+        );
+        assertFalse(a);
 
-    //     // provide signature data using wrong NFT mint address (address(this) != bidder1)
-    //     a = settleFromSignature(
-    //         bid.auctionName,
-    //         address(0xbeef),
-    //         bid.bidder,
-    //         bid.amount,
-    //         bid.basePrice,
-    //         bid.tip,
-    //         v,
-    //         r,
-    //         s
-    //     );
-    //     assertFalse(a);
+        // provide signature data using wrong tip
+        a = settleFromSignature(
+            bid.auctionName,
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.basePrice,
+            bid.tip -= 1,
+            v,
+            r,
+            s
+        );
+        assertFalse(a);
 
-    //     // provide signature data using wrong bidder address (bidder1 != address(this))
-    //     a = settleFromSignature(
-    //         bid.auctionName,
-    //         bid.auctionAddress,
-    //         address(this),
-    //         bid.amount,
-    //         bid.basePrice,
-    //         bid.tip,
-    //         v,
-    //         r,
-    //         s
-    //     );
-    //     assertFalse(a);
+        // provide signature data using wrong v
+        a = settleFromSignature(
+            bid.auctionName,
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.basePrice,
+            bid.tip,
+            v -= 1,
+            r,
+            s
+        );
+        assertFalse(a);
 
-    //     // provide signature data using wrong NFT mint amount (68 != 69)
-    //     a = settleFromSignature(
-    //         bid.auctionName,
-    //         bid.auctionAddress,
-    //         bid.bidder,
-    //         bid.amount -= 1,
-    //         bid.basePrice,
-    //         bid.tip,
-    //         v,
-    //         r,
-    //         s
-    //     );
-    //     assertFalse(a);
+        // provide signature data using wrong r (XOR against s)
+        a = settleFromSignature(
+            bid.auctionName,
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.basePrice,
+            bid.tip,
+            v,
+            r ^ s,
+            s
+        );
+        assertFalse(a);
 
-    //     // provide signature data using wrong basePrice
-    //     a = settleFromSignature(
-    //         bid.auctionName,
-    //         bid.auctionAddress,
-    //         bid.bidder,
-    //         bid.amount,
-    //         bid.basePrice -= 1,
-    //         bid.tip,
-    //         v,
-    //         r,
-    //         s
-    //     );
-    //     assertFalse(a);
-
-    //     // provide signature data using wrong tip
-    //     a = settleFromSignature(
-    //         bid.auctionName,
-    //         bid.auctionAddress,
-    //         bid.bidder,
-    //         bid.amount,
-    //         bid.basePrice,
-    //         bid.tip -= 1,
-    //         v,
-    //         r,
-    //         s
-    //     );
-    //     assertFalse(a);
-
-    //     // provide signature data using wrong v
-    //     a = settleFromSignature(
-    //         bid.auctionName,
-    //         bid.auctionAddress,
-    //         bid.bidder,
-    //         bid.amount,
-    //         bid.basePrice,
-    //         bid.tip,
-    //         v -= 1,
-    //         r,
-    //         s
-    //     );
-    //     assertFalse(a);
-
-    //     // provide signature data using wrong r (XOR against s)
-    //     a = settleFromSignature(
-    //         bid.auctionName,
-    //         bid.auctionAddress,
-    //         bid.bidder,
-    //         bid.amount,
-    //         bid.basePrice,
-    //         bid.tip,
-    //         v,
-    //         r ^ s,
-    //         s
-    //     );
-    //     assertFalse(a);
-
-    //     // provide signature data using wrong s (XOR against r)
-    //     a = settleFromSignature(
-    //         bid.auctionName,
-    //         bid.auctionAddress,
-    //         bid.bidder,
-    //         bid.amount,
-    //         bid.basePrice,
-    //         bid.tip,
-    //         v,
-    //         r,
-    //         s ^ r
-    //     );
-    //     assertFalse(a);
-    // }
+        // provide signature data using wrong s (XOR against r)
+        a = settleFromSignature(
+            bid.auctionName,
+            bid.auctionAddress,
+            bid.bidder,
+            bid.amount,
+            bid.basePrice,
+            bid.tip,
+            v,
+            r,
+            s ^ r
+        );
+        assertFalse(a);
+    }
 }
