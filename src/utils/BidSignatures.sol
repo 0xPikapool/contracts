@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: None
 pragma solidity ^0.8.13;
 
-import "forge-std/Test.sol";
-
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xKhepri and PikaPool Developers
 
-abstract contract BidSignatures is Test {
+abstract contract BidSignatures {
     /// @dev Struct of bid data to be hashed and signed for meta-transactions.
     /// @param auctionName The name of the creator's NFT collection being auctioned
     /// @param auctionAddress The address of the creator NFT being bid on. Becomes a string off-chain.
@@ -21,13 +19,6 @@ abstract contract BidSignatures is Test {
         uint256 amount;
         uint256 basePrice;
         uint256 tip;
-    }
-
-    struct EIP712Domain {
-        string name;
-        string version;
-        uint256 chainId;
-        address verifyingContract;
     }
 
     bytes32 constant EIP712DOMAIN_TYPEHASH =
