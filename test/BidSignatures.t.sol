@@ -7,11 +7,13 @@ import "../src/Example721A.sol";
 import "../src/utils/BidSignatures.sol";
 
 /// This contract inherits Settlement so that it can isolate settleFromSignature() logic from payment mechanics
-contract BidSignaturesTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 30) {
-
+contract BidSignaturesTest is
+    Test,
+    Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 30)
+{
     /// @dev Error to revert execution if ecrecover returns invalid signature originator
     error InvalidSignature();
-    
+
     // as BidSignatures utility contract is abstract, it suffices to instantiate the Settlement that inherits it
     Settlement public settlement;
     Example721A public pikaExample;
@@ -33,7 +35,12 @@ contract BidSignaturesTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD90
         mainnetWETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
         settlement = new Settlement(mainnetWETH, 30);
-        pikaExample = new Example721A(name, symbol, address(settlement), priceInGweth);
+        pikaExample = new Example721A(
+            name,
+            symbol,
+            address(settlement),
+            priceInGweth
+        );
 
         // prepare the cow carcass private key with which to sign
         bidder1PrivateKey = 0xDEADBEEF;
@@ -41,13 +48,47 @@ contract BidSignaturesTest is Test, Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD90
 
         // prepare the bid to be used
         bid = BidSignatures.Bid({
-            auctionName: "TestNFT",
+            auctionName: name,
             auctionAddress: address(pikaExample),
             bidder: bidder1,
             amount: mintMax,
             basePrice: priceInGweth,
             tip: 69
         });
+    }
+
+    function test_example_bid() public {
+        // Settlement Address and chainId are from the DOMAIN_SEPARATOR
+        // are used in determining the hash, so make sure they match the
+        // expected values here
+        assert(
+            address(settlement) ==
+                address(0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f)
+        );
+        assert(block.chainid == 31337);
+
+        Bid memory bid = Bid({
+            auctionName: "TestNFT",
+            auctionAddress: address(0xDD23B2f4cc41914a6BDa77310126251a2556B865),
+            bidder: address(0x36bCaEE2F1f6C185f91608C7802f6Fc4E8bD9f1d),
+            amount: 5,
+            basePrice: 69,
+            tip: 420
+        });
+
+        bytes32 ds = settlement.DOMAIN_SEPARATOR();
+        assert(
+            ds ==
+                0x18306b2971eca0ce9ff1e0da35bba87fd0039f43ab55f13399c9511bb2deb8bc
+        );
+        assert(
+            settlement.hashBid(bid) ==
+                0xa68720e40b22ac61392ad759e2bf5c266c18eb0b0af58b861a7f119a21dc6e53
+        );
+        assert(
+            settlement.hashTypedData(bid) ==
+                0x2a7503ca8eb3ae96c121dd7c847663564727b6b0e49b49a97c4a3476ddb3ede1
+        );
     }
 
     function test_settleFromSignature() public {

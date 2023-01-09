@@ -5,8 +5,7 @@ pragma solidity ^0.8.13;
 /// @author 0xKhepri, 0xBraixen and PikaPool Developers
 
 abstract contract BidSignatures {
-
-    /// @dev Struct of bid data to be hashed and signed for meta-transactions. 
+    /// @dev Struct of bid data to be hashed and signed for meta-transactions.
     /// @param auctionName The name of the creator's NFT collection being auctioned
     /// @param auctionAddress The address of the creator NFT being bid on. Becomes a string off-chain.
     /// @param bidder The address of the bid's originator, similar to tx.origin.
@@ -22,18 +21,24 @@ abstract contract BidSignatures {
         uint256 tip;
     }
 
-    /// @dev The EIP-712 type hash for the Bid struct
-    bytes32 internal constant BID_TYPE_HASH = 
-        keccak256("Bid(string auctionName,address auctionAddress,uint256 amount,uint256 basePrice,uint256 tip)"
-    );
-    
+    bytes32 constant EIP712DOMAIN_TYPEHASH =
+        keccak256(
+            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+        );
+
+    bytes32 constant BID_TYPE_HASH =
+        keccak256(
+            "Bid(string auctionName,address auctionAddress,address bidder,uint256 amount,uint256 basePrice,uint256 tip)"
+        );
+
     /// @dev The EIP-712 domain type hash, required to derive domain separator
-    bytes32 internal constant DOMAIN_TYPE_HASH = 
-        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-    );
+    bytes32 internal constant DOMAIN_TYPE_HASH =
+        keccak256(
+            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+        );
 
     /// @dev The EIP-712 domain name, required to derive domain separator
-    bytes32 internal constant DOMAIN_NAME = keccak256("PikaPool Auction");
+    bytes32 internal constant DOMAIN_NAME = keccak256("Pikapool Auction");
 
     /// @dev The EIP-712 domain version, required to derive domain separator
     bytes32 internal constant DOMAIN_VERSION = keccak256("1");
@@ -58,28 +63,26 @@ abstract contract BidSignatures {
     }
 
     /// @dev Function to compute hash of a bid
-    function hashBid(Bid memory bid) internal pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                BID_TYPE_HASH,
-                bid.auctionName,
-                bid.auctionAddress,
-                bid.bidder,
-                bid.amount,
-                bid.basePrice,
-                bid.tip
-            )
-        );
+    function hashBid(Bid memory bid) public pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    BID_TYPE_HASH,
+                    keccak256(bytes(bid.auctionName)),
+                    bid.auctionAddress,
+                    bid.bidder,
+                    bid.amount,
+                    bid.basePrice,
+                    bid.tip
+                )
+            );
     }
 
     /// @dev Function to compute hash of fully EIP-712 encoded message for the domain to be used with ecrecover()
     function hashTypedData(Bid memory bid) public view returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                hashBid(bid)
-            )
-        );
+        return
+            keccak256(
+                abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hashBid(bid))
+            );
     }
 }
