@@ -46,10 +46,6 @@ abstract contract BidSignatures {
     /// @dev The EIP-712 domain separator, required to prevent replay attacks across networks
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    /// @dev Event emitted when a bid is signed.
-    //todo
-    // event Signature(address indexed owner, bytes bidData, bool revoked);
-
     constructor() {
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
