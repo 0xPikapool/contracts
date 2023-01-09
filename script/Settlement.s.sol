@@ -7,7 +7,7 @@ import "../src/Example721A.sol";
 
 contract SettlementScript is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PK");
+        uint256 deployerPrivateKey = vm.envUint("pk");
         vm.startBroadcast(deployerPrivateKey);
 
         uint price = 69;
