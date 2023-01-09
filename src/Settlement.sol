@@ -148,6 +148,11 @@ contract Settlement is BidSignatures {
     }
 
     /// @dev Internal function that finalizes the settlements upon verification of signatures
+    /// @param auctionAddress The address of the creator NFT being bid on. Becomes a string off-chain.
+    /// @param bidder The address of the bid's originator, similar to tx.origin.
+    /// @param amount The number of assets being bid on.
+    /// @param basePrice The base price per NFT set by the collection's creator
+    /// @param tip The tip per NFT offered by the bidder in order to win a mint in the auction
     function _settle(
         address auctionAddress,
         address bidder,
@@ -180,6 +185,7 @@ contract Settlement is BidSignatures {
     }
 
     /// @dev Function to be called by the Orchestrator following the conclusion of each auction
+    /// @param signatures Array of Signature structs to be deconstructed and verified before settling the auction
     /// @notice Once testnet deployments are complete and testing has been completed by the team's various addresses, restrict this function to Orchestrator only via access control
     function finalizeAuction(Signature[] memory signatures)
         external
@@ -224,6 +230,17 @@ contract Settlement is BidSignatures {
                 ++i;
             }
         }
+    }
+
+    function forwardRevenue() /* onlyOwner */ external {
+        //todo split and forward tips logic 
+
+        uint256 balance = weth.balanceOf(address(this));
+
+        // until royalty splits are decided, currently just burn funds that amass at this address
+        weth.transfer(address(0x0), balance);
+        (bool r,) = payable(address(0x0)).call{ value: address(this).balance }('');
+        require(r);
     }
 
     receive() external payable {}

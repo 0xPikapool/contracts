@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
+import "ERC721A/IERC721A.sol";
 import "../src/Settlement.sol";
 import "../src/Example721A.sol";
 import "../src/utils/Pikapatible.sol";
@@ -38,11 +39,14 @@ contract PikapatibleTest is Test {
     function test_mint() public {
         vm.deal(address(settlement), priceInGweth);
         vm.prank(address(settlement));
-        bool success = pikaExample.mint{ value: priceInGweth }(address(settlement), 1);
-        assertTrue(success);
+        pikaExample.mint{ value: priceInGweth }(address(settlement), 1);
 
         uint256 one = pikaExample.balanceOf(address(settlement));
         assertEq(one, 1);
+
+        // ERC721A defaults to beginning with tokenId 0
+        address mintOwner = pikaExample.ownerOf(0);
+        assertEq(mintOwner, address(settlement));
     }
 
     // ensure mint fails when called from non-owner address
@@ -50,11 +54,14 @@ contract PikapatibleTest is Test {
         vm.deal(address(this), priceInGweth);
         err = bytes("UNAUTHORIZED");
         vm.expectRevert(err);
-        bool fail = pikaExample.mint{ value: priceInGweth }(address(this), 1);
-        assertFalse(fail);
+        pikaExample.mint{ value: priceInGweth }(address(this), 1);
 
         uint256 zero = pikaExample.balanceOf(address(this));
         assertEq(zero, 0);
+
+        bytes4 e = IERC721A.OwnerQueryForNonexistentToken.selector;
+        vm.expectRevert(e);
+        address noOwner = pikaExample.ownerOf(1);
     }
 
     // ensure mint fails when insufficient funds are provided
@@ -62,10 +69,13 @@ contract PikapatibleTest is Test {
         vm.deal(address(settlement), priceInGweth - 1);
 
         vm.prank(address(settlement));
-        bool fail = pikaExample.mint { value: address(settlement).balance }(address(this), 1);
-        assertFalse(fail);
+        pikaExample.mint { value: address(settlement).balance }(address(this), 1);
 
         uint256 zero = pikaExample.balanceOf(address(settlement));
         assertEq(zero, 0);
+
+        bytes4 e = IERC721A.OwnerQueryForNonexistentToken.selector;
+        vm.expectRevert(e);
+        address noOwner = pikaExample.ownerOf(1);
     }
 }

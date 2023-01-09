@@ -10,10 +10,19 @@ contract SettlementScript is Script {
         uint256 deployerPrivateKey = vm.envUint("pk");
         vm.startBroadcast(deployerPrivateKey);
 
-        uint price = 69;
+        address mainnetWETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        address goerliWETH = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
+
+        uint256 maximum = type(uint256).max;
+        uint256 price = 69;
+    
         // using goerli weth address
-        Settlement settlement = new Settlement(0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6, 30);
+        Settlement settlement = new Settlement(goerliWETH, maximum);
         Example721A pikaExample = new Example721A("PikaExample", "PIKA", address(settlement), price);
+
+        // // using mainnet weth address
+        // Settlement settlement = new Settlement(mainnetWETH, maximum);
+        // Example721A pikaExample = new Example721A("PikaExample", "PIKA", address(settlement), price);
 
         vm.stopBroadcast();
     }
