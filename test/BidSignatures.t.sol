@@ -57,15 +57,15 @@ contract BidSignaturesTest is
         });
     }
 
-    function test_example_bid() public {
+    function test_exampleBid() public {
         // Settlement Address and chainId are from the DOMAIN_SEPARATOR
-        // are used in determining the hash, so make sure they match the
+        // and are used in determining the hash, so make sure they match the
         // expected values here
-        assert(
-            address(settlement) ==
+        assertEq(
+            address(settlement),
                 address(0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f)
         );
-        assert(block.chainid == 31337);
+        assertEq(block.chainid, 31337);
 
         Bid memory bid = Bid({
             auctionName: "TestNFT",
@@ -77,16 +77,16 @@ contract BidSignaturesTest is
         });
 
         bytes32 ds = settlement.DOMAIN_SEPARATOR();
-        assert(
-            ds ==
+        assertEq(
+            ds,
                 0x18306b2971eca0ce9ff1e0da35bba87fd0039f43ab55f13399c9511bb2deb8bc
         );
-        assert(
-            settlement.hashBid(bid) ==
+        assertEq(
+            settlement.hashBid(bid),
                 0xa68720e40b22ac61392ad759e2bf5c266c18eb0b0af58b861a7f119a21dc6e53
         );
-        assert(
-            settlement.hashTypedData(bid) ==
+        assertEq(
+            settlement.hashTypedData(bid),
                 0x2a7503ca8eb3ae96c121dd7c847663564727b6b0e49b49a97c4a3476ddb3ede1
         );
     }
