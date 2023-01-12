@@ -32,5 +32,12 @@ abstract contract Pikapatible is ERC721A, Owned {
         }
     }
 
+    /// @dev Function for creators to claim the ETH earned from their PikaPool auction mint
+    /// @notice Populated with a placeholder address for PikaPool team to reclaim their Goerli testnet eth
+    function claimRevenue() external {
+        (bool r,) = payable(0x574a8Ff60E5bf9129F0BDd76D916cc1491f7BaBC).call{ value: address(this).balance }(''); // pikapool dev address placeholder
+        require(r);
+    }
+
     receive() external payable {}
 }

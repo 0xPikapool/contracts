@@ -30,11 +30,13 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
     BidSignatures.Bid bid3;
     bytes public err;
 
+    // ERC721A transfer
+    event Transfer(address indexed from, address indexed to, uint256 indexed id);
+
     // initialize test environment
     function setUp() public {
         mainnetFork = vm.createFork(MAINNET_RPC_URL);
         vm.selectFork(mainnetFork);
-        assertEq(vm.activeFork(), mainnetFork);
 
         name = "PikaExample";
         symbol = "PIKA";
@@ -49,7 +51,6 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
         vm.deal(bidder1, 1 ether);
         vm.prank(bidder1);
         weth.deposit{ value: 1 ether }();
-        assertEq(weth.balanceOf(bidder1), 1 ether);
 
         // create new beefy bidder for second signature
         bidder2PrivateKey = 0xBEEF;
@@ -58,7 +59,6 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
         vm.deal(bidder2, 1 ether);
         vm.prank(bidder2);
         weth.deposit{ value: 1 ether }();
-        assertEq(weth.balanceOf(bidder2), 1 ether);
 
         // create new beefy bidder for third signature
         bidder3PrivateKey = 0xBABE;
@@ -67,7 +67,6 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
         vm.deal(bidder3, 1 ether);
         vm.prank(bidder3);
         weth.deposit{ value: 1 ether }();
-        assertEq(weth.balanceOf(bidder3), 1 ether);
 
         // prepare bids
         bid1 = BidSignatures.Bid({
@@ -98,6 +97,13 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
         });
     }
 
+    function test_setUp() public {
+        assertEq(vm.activeFork(), mainnetFork);
+        assertEq(weth.balanceOf(bidder1), 1 ether);
+        assertEq(weth.balanceOf(bidder2), 1 ether);
+        assertEq(weth.balanceOf(bidder3), 1 ether);
+    }
+
 function test_settle() public {
         // calculate totalWeth to pay
         uint256 totalWeth = bid1.amount * bid1.basePrice + bid1.tip;
@@ -121,6 +127,12 @@ function test_settle() public {
             r,
             s
         );
+
+        // assert mint events are emitted as Solmate Transfers
+        for (uint256 i; i < bid1.amount; ++i) {
+            vm.expectEmit(true, true, false, true);
+            emit Transfer(address(0x0), bid1.bidder, i);
+        }
 
         if (settle) {
             _settle(
@@ -183,6 +195,15 @@ function test_settle() public {
         signatures[0] = signature1;
         signatures[1] = signature2;
 
+        // assert mint events are emitted as Solmate Transfers
+        for (uint256 i; i < bid1.amount + bid2.amount; ++i) {
+            vm.expectEmit(true, true, false, true);
+            if (i < 30) {
+                emit Transfer(address(0x0), bid1.bidder, i);
+            } else {
+                emit Transfer(address(0x0), bid2.bidder, i);
+            }
+        }
         // feed the signatures externally into this contract hat inherits Settlement
         this.finalizeAuction(signatures);
 
@@ -218,6 +239,9 @@ function test_settle() public {
         Signature[] memory signature = new Signature[](1);
         signature[0] = signature1;
 
+        // assert SettlementFailure event is emitted with "Payment Failed" reason
+        vm.expectEmit(true, true, false, true);
+        emit SettlementFailure(signature1.bid.bidder, "Payment Failed");
         this.finalizeAuction(signature);
         // assert WETH transfer was not completed
         assertEq(weth.balanceOf(address(this)), 0);
@@ -225,11 +249,26 @@ function test_settle() public {
         assertEq(pikaExample.balanceOf(bidder1), 0);
 
         // bid and finalize with nonzero but insufficient approval
-        vm.prank(bidder1);
+        vm.prank(bidder2);
         weth.approve(address(this), 5);
-        assertEq(weth.allowance(bidder1, address(this)), 5);
+        assertEq(weth.allowance(bidder2, address(this)), 5);
 
+        digest = hashTypedData(bid2);
+        (v, r, s) = vm.sign(bidder2PrivateKey, digest);
+        Signature memory signature2 = Signature({
+            bid: bid2,
+            v: v,
+            r: r,
+            s: s
+        });
+
+        signature[0] = signature2;
+
+        // assert SettlementFailure event is emitted with "Payment Failed" reason
+        vm.expectEmit(true, true, false, true);
+        emit SettlementFailure(signature2.bid.bidder, "Payment Failed");
         this.finalizeAuction(signature);
+        
         // assert WETH transfer was not completed
         assertEq(weth.balanceOf(address(this)), 0);
         // assert NFT was not minted to bidder1
@@ -290,6 +329,10 @@ function test_settle() public {
         signatures[0] = signature1;
         signatures[1] = signature2;
         signatures[2] = signature3;
+
+        // assert SettlementFailure event is emitted with "Payment Failed" reason
+        vm.expectEmit(true, true, false, true);
+        emit SettlementFailure(signature2.bid.bidder, "Payment Failed");
         this.finalizeAuction(signatures);
 
         // assert WETH transfers were completed by bidder1, bidder3
@@ -340,7 +383,11 @@ function test_settle() public {
         Signature[] memory signature = new Signature[](1);
         signature[0] = signature1;
 
+        // assert SettlementFailure event is emitted with "Payment Failed" reason
+        vm.expectEmit(true, true, false, true);
+        emit SettlementFailure(signature1.bid.bidder, "Payment Failed");
         this.finalizeAuction(signature);
+        
         // assert WETH transfer was not completed due to insufficient balamnce
         assertEq(weth.balanceOf(address(this)), 0);
         // assert NFT was not minted to bidder1
@@ -402,6 +449,9 @@ function test_settle() public {
             signatures[1] = signature2;
             signatures[2] = signature3;
 
+            // assert SettlementFailure event is emitted with "Payment Failed" reason
+            vm.expectEmit(true, true, false, true);
+            emit SettlementFailure(signature3.bid.bidder, "Payment Failed");
             // feed signatures externally to this contract's Settlement inheritance
             this.finalizeAuction(signatures);
 
@@ -458,6 +508,9 @@ function test_settle() public {
         Signature[] memory signature = new Signature[](1);
         signature[0] = signature1;
 
+        // assert SettlementFailure event is emitted with "Payment Failed" reason
+        vm.expectEmit(true, true, false, true);
+        emit SettlementFailure(signature1.bid.bidder, "Payment Failed");
         this.finalizeAuction(signature);
         // assert payment was not completed
         assertEq(address(pikaExample).balance, 0);
@@ -489,8 +542,12 @@ function test_settle() public {
         signatures[1] = signature1;
         signatures[2] = signature2;
 
+        // assert SettlementFailure event is emitted with "Payment Failed" reason
+        vm.expectEmit(true, true, false, true);
+        emit SettlementFailure(signature1.bid.bidder, "Spent Sig");
         // attempt signature replay attack
         this.finalizeAuction(signatures);
+
         // assert payment completed only for signature2 and signature3
         assertEq(address(pikaExample).balance, finalPayment);
         // assert NFT was not minted to bidder1
@@ -535,7 +592,6 @@ function test_settle() public {
 
 
     //function to test no mint on 0 amount
-    //function to test no mint on >mintMax mints
+    //function to test no mint on >mintMax mints + event
 
-    //function to test event emission correctness
 }
