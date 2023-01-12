@@ -5,21 +5,21 @@ import fs from 'fs';
 // appropriate entropy is provided using keccak256 on 16 randomBytes with optional extraEntropy
 
 const main = async () => {
-    const encryptions = JSON.stringify(await generateUsers(Number(process.argv[2])));
-    console.log(JSON.parse(encryptions) + '\nWriting to file ../.env.users.json ...');
-    fs.appendFile('.env.users.json', JSON.stringify(encryptions), err => {
+    const encryptions = JSON.stringify(await generateUsers(Number(process.argv[2]), String(process.argv[3])));
+    console.log((encryptions) + '\nWriting to file ../.env.users.json ...');
+    fs.appendFile('.env.users.json', encryptions, err => {
         if (err) {
             console.error(err)
         }
     })
 }
 
-const generateUsers = async (amount: number): Promise<String[]> => {
+const generateUsers = async (amount: number, pass: string): Promise<String[]> => {
     const accounts: String[] = []
     const prog: number = amount / 100;
 
     for (let i = 0; i < amount; ++i) {
-        accounts.push(await Wallet.createRandom().encrypt('hunter2'));
+        accounts.push(JSON.parse(await Wallet.createRandom().encrypt(pass)));
         let status: number = i % prog;
         if (i > prog && Math.floor(status) == 0) {
             let percent: number = i / prog;
@@ -30,5 +30,5 @@ const generateUsers = async (amount: number): Promise<String[]> => {
     return accounts
 }
 
-// run script with provided parameter in command line
+// run script with provided amount and passwd parameters in command line
 main()
