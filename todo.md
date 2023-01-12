@@ -5,6 +5,7 @@ refactor domain separator logic to be chain agnostic via internal computer and p
 !!!
 convert memory parameters to calldata (auctionName, Signature[] struct)
 test for signature malleability
+sort out spentsignatures and foundry bugging due to continue 
 
 !! send batched tips once all mints have succeeded
 

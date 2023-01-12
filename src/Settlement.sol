@@ -87,17 +87,115 @@ contract Settlement is BidSignatures {
     }
 
     /// @dev WETH contract for this chain, set in constructor
-    WETH public weth;
+    WETH public immutable weth;
 
     /// @dev Maximum mint threshold amount to prevent excessive first-time token transfer costs
     /// @dev Stored in storage for gas optimization (as opposed to repeated mstores)
     uint256 public mintMax;
 
-    event SettlementFailure(address indexed bidder, bytes indexed reason);
+    /// @dev Mapping that stores signature hashes to protect against replay
+    mapping (bytes32 => bool) spentSigNonces;
 
-    constructor(address _wethAddress, uint256 _mintMax) {
-        weth = WETH(payable(_wethAddress));
+    event SettlementFailure(address indexed bidder, bytes reason);
+
+    constructor(address payable _wethAddress, uint256 _mintMax) {
+        weth = WETH(_wethAddress);
         mintMax = _mintMax;
+    }
+
+    /// @dev Function to be called by the Orchestrator following the conclusion of each auction
+    /// @param signatures Array of Signature structs to be deconstructed and verified before settling the auction
+    /// @notice Once testnet deployments are complete and testing has been completed by the team's various addresses, restrict this function to Orchestrator only via access control
+    function finalizeAuction(Signature[] memory signatures)
+        external
+    /* onlyOwner(=orchestrator) */
+    {
+        // uint256 length = signatures.length; // for when signatures is moved to calldata
+
+        // unchecked block provides a substantial amount of gas savings for larger collections, ie 10k pfps
+        // it is impossible to overflow the only arithmetic inheriting the unchecked property: the for loop counter
+        unchecked {
+            for (uint256 i; i < signatures.length; ++i) {
+                if (_aboveMintMax(
+                    signatures[i].bid.amount, 
+                    signatures[i].bid.bidder
+                )) continue;
+                if (_spentSig(
+                    signatures[i].v,
+                    signatures[i].r,
+                    signatures[i].s,
+                    signatures[i].bid.bidder
+                )) continue;
+                if (_verifySignature(
+                    signatures[i].bid.auctionName,
+                    payable(signatures[i].bid.auctionAddress),
+                    signatures[i].bid.bidder,
+                    signatures[i].bid.amount,
+                    signatures[i].bid.basePrice,
+                    signatures[i].bid.tip,
+                    signatures[i].v,
+                    signatures[i].r,
+                    signatures[i].s
+                )) {
+                    spentSigNonces[
+                        keccak256(
+                            abi.encodePacked(
+                                signatures[i].v,
+                                signatures[i].r,
+                                signatures[i].s
+                            )
+                        )
+                    ] = true;
+                    _settle(
+                        signatures[i].bid.auctionAddress,
+                        signatures[i].bid.bidder,
+                        signatures[i].bid.amount,
+                        signatures[i].bid.basePrice,
+                        signatures[i].bid.tip
+                    );
+                } else {
+                    emit SettlementFailure(
+                        signatures[i].bid.bidder,
+                        "Invalid Sig"
+                    );
+                }
+            }
+        }
+    }
+
+    function _aboveMintMax(uint256 _sigBidAmount, address _sigBidder) internal returns (bool excessAmt) {
+        if (_sigBidAmount > mintMax) {
+            emit SettlementFailure(
+                _sigBidder,
+                "Exceeds MintMax"
+            );
+            return true;
+        }
+    }
+    
+    function _spentSig(
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s,
+        address _sigBidder
+    ) internal returns (bool sigSpent) {
+        if (
+            spentSigNonces[
+                keccak256(
+                    abi.encodePacked(
+                        _v,
+                        _r,
+                        _s
+                    )
+                )
+            ]
+        ) {
+            emit SettlementFailure(
+                _sigBidder, 
+                "Spent Sig"
+            );
+            return true;
+        }
     }
 
     /// @dev Function to settle each winning bid via EIP-712 signature
@@ -107,7 +205,7 @@ contract Settlement is BidSignatures {
     /// @param amount The number of assets being bid on.
     /// @param basePrice The base price per NFT set by the collection's creator
     /// @param tip The tip per NFT offered by the bidder in order to win a mint in the auction
-    function settleFromSignature(
+    function _verifySignature(
         string memory auctionName,
         address auctionAddress,
         address bidder,
@@ -160,87 +258,18 @@ contract Settlement is BidSignatures {
         uint256 basePrice,
         uint256 tip
     ) internal {
-        uint256 totalWithoutTip = amount * basePrice;
-        // check allowance before weth transfer to prevent reverts during batch settling
-        if (weth.allowance(bidder, address(this)) >= totalWithoutTip) {
-            bool p = weth.transferFrom(
-                bidder,
-                address(this),
-                totalWithoutTip + tip
-            );
-
-            // if weth transfer succeeds, unwrap weth to eth and pay for creator's NFT mint
-            // create a gas table for these steps as they add more gas overhead than they're worth
-            if (p) {
-                weth.withdraw(totalWithoutTip);
+        uint256 totalWETH = amount * basePrice + tip;
+        try weth.transferFrom(bidder, address(this), totalWETH) returns (bool) {
+            weth.withdraw(totalWETH);
                 Pikapatible(payable(auctionAddress)).mint{
-                    value: totalWithoutTip
+                    value: totalWETH
                 }(bidder, amount);
-            } else {
-                emit SettlementFailure(bidder, bytes("Payment Failed"));
-            }
-        } else {
-            emit SettlementFailure(bidder, bytes("Approve WETH"));
+        } catch {
+            emit SettlementFailure(
+                bidder,
+                "Payment Failed"
+            );
         }
-    }
-
-    /// @dev Function to be called by the Orchestrator following the conclusion of each auction
-    /// @param signatures Array of Signature structs to be deconstructed and verified before settling the auction
-    /// @notice Once testnet deployments are complete and testing has been completed by the team's various addresses, restrict this function to Orchestrator only via access control
-    function finalizeAuction(Signature[] memory signatures)
-        external
-    /* onlyOwner(=orchestrator) */
-    {
-        // uint256 length = signatures.length; // for when signatures is moved to calldata
-        for (uint256 i; i < signatures.length; ) {
-            if (signatures[i].bid.amount <= mintMax) {
-                bool settle = settleFromSignature(
-                    signatures[i].bid.auctionName,
-                    payable(signatures[i].bid.auctionAddress),
-                    signatures[i].bid.bidder,
-                    signatures[i].bid.amount,
-                    signatures[i].bid.basePrice,
-                    signatures[i].bid.tip,
-                    signatures[i].v,
-                    signatures[i].r,
-                    signatures[i].s
-                );
-                if (settle) {
-                    _settle(
-                        signatures[i].bid.auctionAddress,
-                        signatures[i].bid.bidder,
-                        signatures[i].bid.amount,
-                        signatures[i].bid.basePrice,
-                        signatures[i].bid.tip
-                    );
-                } else {
-                    emit SettlementFailure(
-                        signatures[i].bid.bidder,
-                        bytes("Invalid Sig")
-                    );
-                }
-            } else {
-                emit SettlementFailure(
-                    signatures[i].bid.bidder,
-                    bytes("Exceeds MintMax")
-                );
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function forwardRevenue() /* onlyOwner */ external {
-        //todo split and forward tips logic 
-
-        uint256 balance = weth.balanceOf(address(this));
-
-        // until royalty splits are decided, currently just burn funds that amass at this address
-        weth.transfer(address(0x0), balance);
-        (bool r,) = payable(address(0x0)).call{ value: address(this).balance }('');
-        require(r);
     }
 
     receive() external payable {}

@@ -10,8 +10,8 @@ contract SettlementScript is Script {
         uint256 deployerPrivateKey = vm.envUint("pk");
         vm.startBroadcast(deployerPrivateKey);
 
-        address mainnetWETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        address goerliWETH = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
+        // address payable mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        address payable goerliWETH = payable(0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6);
 
         uint256 maximum = type(uint256).max;
         uint256 price = 69;

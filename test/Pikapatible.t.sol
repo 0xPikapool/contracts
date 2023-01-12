@@ -12,6 +12,7 @@ contract PikapatibleTest is Test {
     Settlement public settlement;
     Example721A public pikaExample;
 
+    address payable mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     string name;
     string symbol;
     uint256 priceInGweth;
@@ -21,7 +22,7 @@ contract PikapatibleTest is Test {
     function setUp() public {
         name = "PikaExample";
         symbol = "PIKA";
-        settlement = new Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 30);
+        settlement = new Settlement(mainnetWETH, 30);
         priceInGweth = 69;
         pikaExample = new Example721A(name, symbol, address(settlement), priceInGweth);
         
@@ -61,7 +62,20 @@ contract PikapatibleTest is Test {
 
         bytes4 e = IERC721A.OwnerQueryForNonexistentToken.selector;
         vm.expectRevert(e);
-        address noOwner = pikaExample.ownerOf(1);
+        pikaExample.ownerOf(1);
+    }
+
+    // ensure mint fails when called with amount parameter == 0
+    function testRevert_mintWrongAmount() public {
+        vm.deal(address(settlement), priceInGweth);
+
+        bytes4 e = IERC721A.MintZeroQuantity.selector;
+        vm.expectRevert(e);
+        vm.prank(address(settlement));
+        pikaExample.mint{ value: priceInGweth }(address(this), 0);
+
+        uint256 zero = pikaExample.balanceOf(address(settlement));
+        assertEq(zero, 0);
     }
 
     // ensure mint fails when insufficient funds are provided
@@ -69,13 +83,13 @@ contract PikapatibleTest is Test {
         vm.deal(address(settlement), priceInGweth - 1);
 
         vm.prank(address(settlement));
-        pikaExample.mint { value: address(settlement).balance }(address(this), 1);
+        pikaExample.mint{ value: address(settlement).balance }(address(this), 1);
 
         uint256 zero = pikaExample.balanceOf(address(settlement));
         assertEq(zero, 0);
 
         bytes4 e = IERC721A.OwnerQueryForNonexistentToken.selector;
         vm.expectRevert(e);
-        address noOwner = pikaExample.ownerOf(1);
+        pikaExample.ownerOf(1);
     }
 }

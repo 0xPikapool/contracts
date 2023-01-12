@@ -6,16 +6,18 @@ import "../src/Settlement.sol";
 import "../src/Example721A.sol";
 import "../src/utils/BidSignatures.sol";
 
-/// This contract inherits Settlement so that it can isolate settleFromSignature() logic from payment mechanics
+address payable constant mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+
+/// This contract inherits Settlement so that it may test internal function logic
+/// BidSignatures utility contract is instantianted by this test contract's inheritance
+/// It does not need to be instantiated directly since it is abstract and parent to Settlement
 contract BidSignaturesTest is
     Test,
-    Settlement(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, 30)
+    Settlement(mainnetWETH, 30)
 {
     /// @dev Error to revert execution if ecrecover returns invalid signature originator
     error InvalidSignature();
 
-    // as BidSignatures utility contract is abstract, it suffices to instantiate the Settlement that inherits it
-    Settlement public settlement;
     Example721A public pikaExample;
 
     BidSignatures.Bid bid;
@@ -24,7 +26,6 @@ contract BidSignaturesTest is
     string symbol;
     uint256 internal bidder1PrivateKey;
     address internal bidder1;
-    address internal mainnetWETH;
     bytes public err;
 
     // initialize test environment
@@ -32,13 +33,11 @@ contract BidSignaturesTest is
         name = "PikaExample";
         symbol = "PIKA";
         priceInGweth = 69;
-        mainnetWETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-        settlement = new Settlement(mainnetWETH, 30);
         pikaExample = new Example721A(
             name,
             symbol,
-            address(settlement),
+            address(this),
             priceInGweth
         );
 
@@ -57,16 +56,16 @@ contract BidSignaturesTest is
         });
     }
 
-    function test_settleFromSignature() public {
+    function test__verifySignature() public {
         bytes32 digest = hashTypedData(bid);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
 
-        // extracted the settleFromSignature() logic without payment to isolate and verify signature functionality
+        // test _verifySignature() logic without payment to isolate and verify signature functionality
         uint256 amount = bid.amount;
 
         if (amount <= mintMax) {
-            bool settle = settleFromSignature(
+            bool settle = _verifySignature(
                 bid.auctionName,
                 bid.auctionAddress,
                 bid.bidder,
@@ -88,7 +87,7 @@ contract BidSignaturesTest is
 
         bool a;
         // provide signature data using wrong auctionName
-        a = settleFromSignature(
+        a = _verifySignature(
             "Hello World",
             bid.auctionAddress,
             bid.bidder,
@@ -102,7 +101,7 @@ contract BidSignaturesTest is
         assertFalse(a);
 
         // provide signature data using wrong NFT mint address (address(this) != bidder1)
-        a = settleFromSignature(
+        a = _verifySignature(
             bid.auctionName,
             address(0xbeef),
             bid.bidder,
@@ -116,7 +115,7 @@ contract BidSignaturesTest is
         assertFalse(a);
 
         // provide signature data using wrong bidder address (bidder1 != address(this))
-        a = settleFromSignature(
+        a = _verifySignature(
             bid.auctionName,
             bid.auctionAddress,
             address(this),
@@ -130,7 +129,7 @@ contract BidSignaturesTest is
         assertFalse(a);
 
         // provide signature data using wrong NFT mint amount (68 != 69)
-        a = settleFromSignature(
+        a = _verifySignature(
             bid.auctionName,
             bid.auctionAddress,
             bid.bidder,
@@ -144,7 +143,7 @@ contract BidSignaturesTest is
         assertFalse(a);
 
         // provide signature data using wrong basePrice
-        a = settleFromSignature(
+        a = _verifySignature(
             bid.auctionName,
             bid.auctionAddress,
             bid.bidder,
@@ -158,7 +157,7 @@ contract BidSignaturesTest is
         assertFalse(a);
 
         // provide signature data using wrong tip
-        a = settleFromSignature(
+        a = _verifySignature(
             bid.auctionName,
             bid.auctionAddress,
             bid.bidder,
@@ -172,7 +171,7 @@ contract BidSignaturesTest is
         assertFalse(a);
 
         // provide signature data using wrong v
-        a = settleFromSignature(
+        a = _verifySignature(
             bid.auctionName,
             bid.auctionAddress,
             bid.bidder,
@@ -186,7 +185,7 @@ contract BidSignaturesTest is
         assertFalse(a);
 
         // provide signature data using wrong r (XOR against s)
-        a = settleFromSignature(
+        a = _verifySignature(
             bid.auctionName,
             bid.auctionAddress,
             bid.bidder,
@@ -200,7 +199,7 @@ contract BidSignaturesTest is
         assertFalse(a);
 
         // provide signature data using wrong s (XOR against r)
-        a = settleFromSignature(
+        a = _verifySignature(
             bid.auctionName,
             bid.auctionAddress,
             bid.bidder,

@@ -27,7 +27,7 @@ abstract contract Pikapatible is ERC721A, Owned {
     /// @param to The bidder address to mint to, provided a sufficient bid was offered
     /// @param amount The number of NFTs to mint to the bidder
     function mint(address to, uint256 amount) external payable onlyOwner {
-        if (msg.value >= price) {
+        if (msg.value >= price * amount) {
             _mint(to, amount);
         }
     }

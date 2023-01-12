@@ -16,7 +16,7 @@ contract Example721A is ERC721A, Pikapatible {
         uint256 _priceInGweth
     ) ERC721A(_name,_symbol) Pikapatible(_settlementContract,_priceInGweth) {}
 
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+    function tokenURI(uint256 /*tokenId*/) public pure override returns (string memory) {
         return "ar://mOZLYUUSsy1V9U7qGETfN1eSU9Hv42eB7zGrxsCQbUk";
     }
 }
