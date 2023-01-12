@@ -86,6 +86,7 @@ contract BidSignaturesTest is
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
 
         bool a;
+        
         // provide signature data using wrong auctionName
         a = _verifySignature(
             "Hello World",
