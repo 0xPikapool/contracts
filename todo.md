@@ -1,7 +1,13 @@
 consider pushing eip4494 to said plugin/custom logic for better UX. Nonce must however be incremented each transfer
 
+deploy fake weth contract with identical wrap/unwrap implememtation
+  --override approve function or manually approve to settlement contract:
+  --add function to reclaim weth from all 1000 addresses
+
 !!!
 convert memory parameters to calldata (auctionName, Signature[] struct)
+        // uint256 length = signatures.length; // for when signatures is moved to calldata
+
 
 
 gas optimizations:

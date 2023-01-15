@@ -74,9 +74,10 @@ error PaymentFailure();
 error MintFailure();
 
 contract Settlement is BidSignatures {
+
     /// @dev Struct of signature data for winning bids to be deconstructed and validated to mint NFTs
     /// @param bid The winning bid fed to this Settlement contract by the Orchestrator
-    /// @param v ECDSA cryptographic parameter derived from digest hash and bidder privatekey
+    /// @param v ECDSA cryptographic recovery ID derived from digest hash and bidder privatekey
     /// @param r ECDSA cryptographic parameter derived from digest hash and bidder privatekey
     /// @param s ECDSA cryptographic parameter derived from digest hash and bidder privatekey
     struct Signature {
@@ -96,6 +97,9 @@ contract Settlement is BidSignatures {
     /// @dev Mapping that stores signature hashes to protect against replay
     mapping (bytes32 => bool) spentSigNonces;
 
+    /// @dev Event emitted upon any signature's settlement failure, used in place of reverts to ensure finality even in case of failures
+    /// @param bidder The address of the winning bid's originator, in this case comparable to tx.origin
+    /// @param reason The reason for the signature's failure. This can be one of several potential issues and is helpful for debugging.
     event SettlementFailure(address indexed bidder, bytes reason);
 
     constructor(address payable _wethAddress, uint256 _mintMax) {
@@ -104,14 +108,13 @@ contract Settlement is BidSignatures {
     }
 
     /// @dev Function to be called by the Orchestrator following the conclusion of each auction
+    /// @dev To save gas, this function cycles through a series of checks via internal functions that simply trigger a continuation of the loop at the next index when failed
     /// @param signatures Array of Signature structs to be deconstructed and verified before settling the auction
-    /// @notice Once testnet deployments are complete and testing has been completed by the team's various addresses, restrict this function to Orchestrator only via access control
+    /// @notice Once testing has been completed, this function will be restricted via access control to the Orchestrator only
     function finalizeAuction(Signature[] memory signatures)
         external
     /* onlyOwner(=orchestrator) */
     {
-        // uint256 length = signatures.length; // for when signatures is moved to calldata
-
         // unchecked block provides a substantial amount of gas savings for larger collections, ie 10k pfps
         // it is impossible to overflow the only arithmetic inheriting the unchecked property: the for loop counter
         unchecked {
@@ -163,6 +166,9 @@ contract Settlement is BidSignatures {
         }
     }
 
+    /// @dev Internal function to check against this Settlement contract's `mintMax` and reject excessive bid amounts
+    /// @param _sigBidAmount The amount of NFTs requested by the bid
+    /// @param _sigBidder The address of the winning bid's originator, in this case comparable to tx.origin
     function _aboveMintMax(uint256 _sigBidAmount, address _sigBidder) internal returns (bool excessAmt) {
         if (_sigBidAmount > mintMax) {
             emit SettlementFailure(
@@ -173,6 +179,11 @@ contract Settlement is BidSignatures {
         }
     }
     
+    /// @dev Internal function to check against storage mapping of keccak256 sig hashes for spent signatures
+    /// @param _v ECDSA cryptographic recovery ID derived from digest hash and bidder privatekey
+    /// @param _r ECDSA cryptographic parameter derived from digest hash and bidder privatekey
+    /// @param _s ECDSA cryptographic parameter derived from digest hash and bidder privatekey
+    /// @param _sigBidder The address of the winning bid's originator, in this case comparable to tx.origin
     function _spentSig(
         uint8 _v,
         bytes32 _r,
@@ -201,7 +212,7 @@ contract Settlement is BidSignatures {
     /// @dev Function to settle each winning bid via EIP-712 signature
     /// @param auctionName The name of the creator's NFT collection being auctioned
     /// @param auctionAddress The address of the creator NFT being bid on. Becomes a string off-chain.
-    /// @param bidder The address of the bid's originator, similar to tx.origin.
+    /// @param bidder The address of the winning bid's originator, in this case comparable to tx.origin.
     /// @param amount The number of assets being bid on.
     /// @param basePrice The base price per NFT set by the collection's creator
     /// @param tip The tip per NFT offered by the bidder in order to win a mint in the auction
@@ -247,7 +258,7 @@ contract Settlement is BidSignatures {
 
     /// @dev Internal function that finalizes the settlements upon verification of signatures
     /// @param auctionAddress The address of the creator NFT being bid on. Becomes a string off-chain.
-    /// @param bidder The address of the bid's originator, similar to tx.origin.
+    /// @param bidder The address of the winning bid's originator, in this case comparable to tx.origin.
     /// @param amount The number of assets being bid on.
     /// @param basePrice The base price per NFT set by the collection's creator
     /// @param tip The tip per NFT offered by the bidder in order to win a mint in the auction
