@@ -1,8 +1,15 @@
 # Settlement
-[Git Source](https://github.com-khepri/0xPikapool/pikapool-contracts/blob/46c3d29612fee963c31205560a2c2694af75ef33/src/Settlement.sol)
+[Git Source](https://github.com/0xPikapool/contracts/blob/0d2085bf07634179f0c90014bdaf01f8924364bc/src/Settlement.sol)
 
 **Inherits:**
 [BidSignatures](/src/utils/BidSignatures.sol/contract.BidSignatures.md)
+
+**Author:**
+0xViola and PikaPool Developers
+
+*This contract lies at the heart of PikaPool's on-chain mechanics, providing batch settlement of mints
+for 721A NFTs that extend the Pikapatible plugin. It need only ever be called by the PikaPool orchestrator,
+which provides an array of bid signatures to mint NFTs to the winning bidders*
 
 
 ## State Variables
@@ -27,7 +34,7 @@ uint256 public mintMax;
 
 
 ### spentSigNonces
-*Mapping that stores signature hashes to protect against replay*
+*Mapping that stores keccak256 hashes of spent signatures to protect against replay attacks*
 
 
 ```solidity
@@ -49,7 +56,7 @@ Once testing has been completed, this function will be restricted via access con
 
 *Function to be called by the Orchestrator following the conclusion of each auction*
 
-*To save gas, this function cycles through a series of checks via internal functions that simply trigger a continuation of the loop at the next index when failed*
+*To save gas, this function cycles through a series of checks via internal functions that simply trigger a continuation of the loop at the next index upon failure*
 
 
 ```solidity
@@ -157,7 +164,8 @@ receive() external payable;
 
 ## Events
 ### SettlementFailure
-*Event emitted upon any signature's settlement failure, used in place of reverts to ensure finality even in case of failures*
+*Event emitted upon any signature's settlement failure,
+used instead of reverts to ensure finality for successful mints even in the case of failures interspersed within the batch*
 
 
 ```solidity

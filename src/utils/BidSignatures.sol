@@ -1,10 +1,14 @@
-// SPDX-License-Identifier: None
+// SPDX-License-Identifier: AGPL
 pragma solidity ^0.8.13;
 
 /// @title PikaPool Protocol Settlement Contract
-/// @author 0xViola + 0xArceus, and PikaPool Developers
+/// @author 0xViola, 0xArceus, and PikaPool Developers
+
+/// @dev This contract is abstract and inherited by the Settlement contract, 
+/// providing the Bid struct type as well as the EIP712 hashing logic and variables to create the domain separator
 
 abstract contract BidSignatures {
+
     /// @dev Struct of bid data to be hashed and signed for meta-transactions.
     /// @param auctionName The name of the creator's NFT collection being auctioned
     /// @param auctionAddress The address of the creator NFT being bid on. Becomes a string off-chain.
@@ -22,7 +26,7 @@ abstract contract BidSignatures {
     }
 
     /// @dev The EIP-712 type hash of the bid struct, required to derive domain separator
-    bytes32 constant BID_TYPE_HASH =
+    bytes32 internal constant BID_TYPE_HASH =
         keccak256(
             "Bid(string auctionName,address auctionAddress,address bidder,uint256 amount,uint256 basePrice,uint256 tip)"
         );
@@ -39,7 +43,8 @@ abstract contract BidSignatures {
     /// @dev The EIP-712 domain version, required to derive domain separator
     bytes32 internal constant DOMAIN_VERSION = keccak256("1");
 
-    /// @dev The EIP-712 domain separator, required to prevent replay attacks across networks
+    /// @dev The EIP-712 domain separator, computed in the constructor using the current chain id and settlement
+    /// contract's own address to prevent replay attacks across networks
     bytes32 public immutable DOMAIN_SEPARATOR;
 
     constructor() {
@@ -54,7 +59,8 @@ abstract contract BidSignatures {
         );
     }
 
-    /// @dev Function to compute hash of a bid
+    /// @dev Function to compute hash of a PikaPool bid
+    /// @param bid The Bid struct to be hashed
     function hashBid(Bid memory bid) public pure returns (bytes32) {
         return
             keccak256(
@@ -71,6 +77,7 @@ abstract contract BidSignatures {
     }
 
     /// @dev Function to compute hash of fully EIP-712 encoded message for the domain to be used with ecrecover()
+    /// @param bid The Bid struct to be hashed using hashBid and then hashed again in keeping with EIP712 standards
     function hashTypedData(Bid memory bid) public view returns (bytes32) {
         return
             keccak256(

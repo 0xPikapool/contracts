@@ -5,7 +5,7 @@ title = ''
 no-section-label = true
 additional-js = ['solidity.min.js']
 additional-css = ['book.css']
-git-repository-url = 'https://github.com-khepri/0xPikapool/pikapool-contracts'
+git-repository-url = 'https://github.com/0xPikapool/contracts'
 
 [output.html.fold]
 enable = true

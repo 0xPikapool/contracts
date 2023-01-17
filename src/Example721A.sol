@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: None
+// SPDX-License-Identifier: AGPL
 pragma solidity ^0.8.13;
 
 import "ERC721A/ERC721A.sol";
@@ -6,6 +6,9 @@ import "src/utils/Pikapatible.sol";
 
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xViola and PikaPool Developers
+
+/// @dev This contract is an example 721A NFT demonstrating PikaPool's convenient Pikapatible plugin.
+/// As shown, projects may enjoy the benefits of the PikaPool auction engine simply by adding three lines of code
 
 contract Example721A is ERC721A, Pikapatible {
 
@@ -27,7 +30,7 @@ contract Example721A is ERC721A, Pikapatible {
     /// @notice This is the only function that needs to be implemented by an NFT project wishing to mint using PikaPool's engine,
     /// metadata formats of all kinds are supported (IPFS, Arweave, on-chain etc)
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
-        // placeholder Pikachu ASCII art deployed on Arweave, made by 0xViola
+        // placeholder Pikachu ASCII art hosted on Arweave, created and deployed by 0xViola
         return "ar://mOZLYUUSsy1V9U7qGETfN1eSU9Hv42eB7zGrxsCQbUk";
     }
 }

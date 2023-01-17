@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: None
+// SPDX-License-Identifier: AGPL
 pragma solidity ^0.8.13;
 
 /*
@@ -68,10 +68,9 @@ import "./utils/Pikapatible.sol";
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xViola and PikaPool Developers
 
-/// @dev Error thrown if WETH transferFrom() call fails, implying the bidder's payment failed
-error PaymentFailure();
-/// @dev Error thrown if a mint fails
-error MintFailure();
+/// @dev This contract lies at the heart of PikaPool's on-chain mechanics, providing batch settlement of mints
+/// for 721A NFTs that extend the Pikapatible plugin. It need only ever be called by the PikaPool orchestrator,
+/// which provides an array of bid signatures to mint NFTs to the winning bidders
 
 contract Settlement is BidSignatures {
 
@@ -94,10 +93,11 @@ contract Settlement is BidSignatures {
     /// @dev Stored in storage for gas optimization (as opposed to repeated mstores)
     uint256 public mintMax;
 
-    /// @dev Mapping that stores signature hashes to protect against replay
+    /// @dev Mapping that stores keccak256 hashes of spent signatures to protect against replay attacks
     mapping (bytes32 => bool) spentSigNonces;
 
-    /// @dev Event emitted upon any signature's settlement failure, used in place of reverts to ensure finality even in case of failures
+    /// @dev Event emitted upon any signature's settlement failure, 
+    /// used instead of reverts to ensure finality for successful mints even in the case of failures interspersed within the batch
     /// @param bidder The address of the winning bid's originator, in this case comparable to tx.origin
     /// @param reason The reason for the signature's failure. This can be one of several potential issues and is helpful for debugging.
     event SettlementFailure(address indexed bidder, bytes reason);
@@ -108,7 +108,7 @@ contract Settlement is BidSignatures {
     }
 
     /// @dev Function to be called by the Orchestrator following the conclusion of each auction
-    /// @dev To save gas, this function cycles through a series of checks via internal functions that simply trigger a continuation of the loop at the next index when failed
+    /// @dev To save gas, this function cycles through a series of checks via internal functions that simply trigger a continuation of the loop at the next index upon failure
     /// @param signatures Array of Signature structs to be deconstructed and verified before settling the auction
     /// @notice Once testing has been completed, this function will be restricted via access control to the Orchestrator only
     function finalizeAuction(Signature[] memory signatures)
