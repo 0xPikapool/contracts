@@ -66,7 +66,7 @@ import "./utils/BidSignatures.sol";
 import "./utils/Pikapatible.sol";
 
 /// @title PikaPool Protocol Settlement Contract
-/// @author 0xKhepri and PikaPool Developers
+/// @author 0xViola and PikaPool Developers
 
 /// @dev Error thrown if WETH transferFrom() call fails, implying the bidder's payment failed
 error PaymentFailure();

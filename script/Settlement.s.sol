@@ -16,9 +16,9 @@ contract SettlementScript is Script {
         uint256 maximum = type(uint256).max;
         uint256 price = 69;
     
-        // using goerli weth address
+        // using goerli weth address, PikaPool dev placeholder address as recipient
         Settlement settlement = new Settlement(goerliWETH, maximum);
-        Example721A pikaExample = new Example721A("PikaExample", "PIKA", address(settlement), price);
+        Example721A pikaExample = new Example721A("PikaExample", "PIKA", address(settlement), address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180), price);
 
         // // using mainnet weth address
         // Settlement settlement = new Settlement(mainnetWETH, maximum);

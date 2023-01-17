@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 /// @title PikaPool Protocol Settlement Contract
-/// @author 0xKhepri + 0xBraixen, and PikaPool Developers
+/// @author 0xViola + 0xArceus, and PikaPool Developers
 
 abstract contract BidSignatures {
     /// @dev Struct of bid data to be hashed and signed for meta-transactions.
@@ -21,11 +21,7 @@ abstract contract BidSignatures {
         uint256 tip;
     }
 
-    bytes32 constant EIP712DOMAIN_TYPEHASH =
-        keccak256(
-            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-        );
-
+    /// @dev The EIP-712 type hash of the bid struct, required to derive domain separator
     bytes32 constant BID_TYPE_HASH =
         keccak256(
             "Bid(string auctionName,address auctionAddress,address bidder,uint256 amount,uint256 basePrice,uint256 tip)"

@@ -41,8 +41,8 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
         name = "PikaExample";
         symbol = "PIKA";
         priceInGweth = 69;
-
-        pikaExample = new Example721A(name, symbol, address(this), priceInGweth);
+        // zero address used as placeholder for revenue recipient
+        pikaExample = new Example721A(name, symbol, address(this), address(0x0), priceInGweth);
 
         // prepare the cow carcass private key with which to sign
         bidder1PrivateKey = 0xDEADBEEF;

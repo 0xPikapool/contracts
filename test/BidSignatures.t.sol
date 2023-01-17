@@ -34,10 +34,12 @@ contract BidSignaturesTest is
         symbol = "PIKA";
         priceInGweth = 69;
 
+        // zero address used as placeholder for revenue recipient
         pikaExample = new Example721A(
             name,
             symbol,
             address(this),
+            address(0x0),
             priceInGweth
         );
 

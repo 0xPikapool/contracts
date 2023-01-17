@@ -5,24 +5,26 @@ import "ERC721A/ERC721A.sol";
 import "solmate/auth/Owned.sol";
 
 /// @title PikaPool Protocol Settlement Contract
-/// @author 0xKhepri and PikaPool Developers
+/// @author 0xViola and PikaPool Developers
 
 /// @dev This plugin attaches to any ERC721A contract and renders it Pika-Compatible 'Pikapatible'
 /// by implementing its mint function and declaring the PikaPool Settlement contract its owner.
 /// This ensures all payments and tips are reliably received on mint from PikaPool in accordance with its robust auction engine
 abstract contract Pikapatible is ERC721A, Owned {
 
+    address public recipient;
     uint256 public price;
 
-    constructor(address _settlementContract, uint256 _priceInGweth) Owned(_settlementContract) {
-        price = _priceInGweth;
+    constructor(address _settlementContract, address _recipient, uint256 _priceInWei) Owned(_settlementContract) {
+        recipient = _recipient;
+        price = _priceInWei;
     }
 
     /// @dev This mint function can be attached to any ERC721A to enjoy the benefits of the PikaPool auction engine
     /// It will not mint if insufficient funds are paid, avoiding a revert() in order to facilitate the
     /// Settlement contract's batch minting functionality
     /// @notice ERC721A's _safeMint() functionality is shirked in favor of _mint, as all PikaPool mints 
-    /// utilize meta-transactions. This ensures no smart contracts can bid as they do not possess private keys.
+    /// utilize meta-transactions. This ensures no smart contracts can sign bids as they do not possess private keys.
     /// @notice May only be called by the Settlement contract
     /// @param to The bidder address to mint to, provided a sufficient bid was offered
     /// @param amount The number of NFTs to mint to the bidder
@@ -33,9 +35,8 @@ abstract contract Pikapatible is ERC721A, Owned {
     }
 
     /// @dev Function for creators to claim the ETH earned from their PikaPool auction mint
-    /// @notice Populated with a placeholder address for PikaPool team to reclaim their Goerli testnet eth
     function claimRevenue() external {
-        (bool r,) = payable(0x574a8Ff60E5bf9129F0BDd76D916cc1491f7BaBC).call{ value: address(this).balance }(''); // pikapool dev address placeholder
+        (bool r,) = payable(recipient).call{ value: address(this).balance }('');
         require(r);
     }
 

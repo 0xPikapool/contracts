@@ -24,7 +24,8 @@ contract PikapatibleTest is Test {
         symbol = "PIKA";
         settlement = new Settlement(mainnetWETH, 30);
         priceInGweth = 69;
-        pikaExample = new Example721A(name, symbol, address(settlement), priceInGweth);
+        // zero address used as placeholder for revenue recipient
+        pikaExample = new Example721A(name, symbol, address(settlement), address(0x0), priceInGweth);
         
         string memory name_ = pikaExample.name();
         assertEq(name_, "PikaExample");
