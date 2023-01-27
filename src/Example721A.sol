@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "ERC721A/ERC721A.sol";
+import "solmate/utils/LibString.sol";
 import "src/utils/Pikapatible.sol";
 
 /// @title PikaPool Protocol Settlement Contract
@@ -22,8 +23,9 @@ contract Example721A is ERC721A, Pikapatible {
         string memory _symbol,
         address _settlementContract,
         address _recipient,
-        uint256 _priceInWei
-    ) ERC721A(_name,_symbol) Pikapatible(_settlementContract, _recipient, _priceInWei) {}
+        uint256 _priceInWei,
+        uint256 _maxSupply
+    ) ERC721A(_name,_symbol) Pikapatible(_settlementContract, _recipient, _priceInWei, _maxSupply) {}
 
     /// @dev The tokenURI function that returns the NFT metadata, providing it for marketplaces or frontends viewing the NFT itself
     /// @param tokenId The unique (non-fungible) identifier of a specific NFT
