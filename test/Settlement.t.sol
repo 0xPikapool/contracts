@@ -19,6 +19,7 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
     string name;
     string symbol;
     uint256 public priceInGweth;
+    uint256 public maxSupply;
     uint256 internal bidder1PrivateKey;
     uint256 internal bidder2PrivateKey;
     uint256 internal bidder3PrivateKey;
@@ -41,8 +42,16 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
         name = "PikaExample";
         symbol = "PIKA";
         priceInGweth = 69;
+        maxSupply = type(uint256).max;
         // zero address used as placeholder for revenue recipient
-        pikaExample = new Example721A(name, symbol, address(this), address(0x0), priceInGweth);
+        pikaExample = new Example721A(
+            name, 
+            symbol, 
+            address(this), 
+            address(0x0), 
+            priceInGweth,
+            maxSupply
+        );
 
         // prepare the cow carcass private key with which to sign
         bidder1PrivateKey = 0xDEADBEEF;
@@ -223,6 +232,45 @@ function test_settle() public {
                 assertEq(recipient, bidder2);
             }
         }
+    }
+
+    function test_skipZeroAmountMints() public {
+        // create bid with 0 as amount
+        BidSignatures.Bid memory bid0 = Bid({
+            auctionName: "TestNFT",
+            auctionAddress: address(pikaExample),
+            bidder: bidder1,
+            amount: 0,
+            basePrice: priceInGweth,
+            tip: 69
+        });
+
+        // make approval
+        vm.prank(bidder1);
+        weth.approve(address(this), bid0.tip);
+        assertEq(weth.allowance(bidder1, address(this)), bid0.tip);
+
+        bytes32 digest = hashTypedData(bid0);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
+        Signature memory signature0 = Signature({
+            bid: bid0,
+            v: v,
+            r: r,
+            s: s
+        });
+
+        Signature[] memory signatures = new Signature[](2);
+        signatures[0] = signature0;
+
+        this.finalizeAuction(signatures);
+
+        // check that no mints occurred without reverts
+        uint256 zero = pikaExample.totalSupply();
+        assertEq(zero, 0);
+        uint256 none = pikaExample.balanceOf(bid0.bidder);
+        assertEq(none, 0);
+        vm.expectRevert();
+        pikaExample.ownerOf(0);
     }
 
     function test_skipSingleInsufficientApproval() public {
@@ -590,8 +638,68 @@ function test_settle() public {
         this.finalizeAuction(cannotOverflow);
     }
 
+    // ensure mints that exceed maximum are skipped and emit MintFailure
+    function test_finalizeAuctionExceedsMaxSupply() public {
+        // set up new example721A with lower max supply
+        Example721A tenMax = new Example721A(
+            'Only10', 
+            'TEN', 
+            address(this), 
+            address(0x0), 
+            10,
+            10
+        );
 
-    //function to test no mint on 0 amount
-    //function to test no mint on >mintMax mints + event
+        BidSignatures.Bid memory five = Bid({
+            auctionName: "Only10",
+            auctionAddress: address(tenMax),
+            bidder: bidder1,
+            amount: 5,
+            basePrice: 10,
+            tip: 0
+        });
 
+        BidSignatures.Bid memory six = Bid({
+            auctionName: "Only10",
+            auctionAddress: address(tenMax),
+            bidder: bidder2,
+            amount: 6,
+            basePrice: 10,
+            tip: 0
+        });
+
+        vm.prank(bidder1);
+        weth.approve(address(this), type(uint256).max);
+        vm.prank(bidder2);
+        weth.approve(address(this), type(uint256).max);
+
+        bytes32 digestFive = hashTypedData(five);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digestFive);
+        Signature memory fiveSig = Signature({
+            bid: five,
+            v: v,
+            r: r,
+            s: s
+        });
+
+        bytes32 digestSix = hashTypedData(six);
+        (uint8 v_, bytes32 r_, bytes32 s_) = vm.sign(bidder2PrivateKey, digestSix);
+        Signature memory sixSig = Signature({
+            bid: six,
+            v: v_,
+            r: r_,
+            s: s_
+        });
+
+        Signature[] memory excess = new Signature[](2);
+        excess[0] = fiveSig;
+        excess[1] = sixSig;
+
+        this.finalizeAuction(excess);
+
+        // assert only the first bid successfully minted as the second exceeded maxSupply
+        assertEq(tenMax.totalSupply(), five.amount);
+        assertEq(tenMax.balanceOf(bidder1), five.amount);
+        assertEq(tenMax.balanceOf(bidder2), 0);
+    }
 }

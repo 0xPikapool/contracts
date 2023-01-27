@@ -16,6 +16,7 @@ contract PikapatibleTest is Test {
     string name;
     string symbol;
     uint256 priceInGweth;
+    uint256 maxSupply;
     bytes public err;
 
     // initialize test environment
@@ -24,8 +25,16 @@ contract PikapatibleTest is Test {
         symbol = "PIKA";
         settlement = new Settlement(mainnetWETH, 30);
         priceInGweth = 69;
+        maxSupply = 10;
         // zero address used as placeholder for revenue recipient
-        pikaExample = new Example721A(name, symbol, address(settlement), address(0x0), priceInGweth);
+        pikaExample = new Example721A(
+            name, 
+            symbol, 
+            address(settlement), 
+            address(0x0), 
+            priceInGweth,
+            maxSupply
+        );
         
         string memory name_ = pikaExample.name();
         assertEq(name_, "PikaExample");
@@ -66,17 +75,19 @@ contract PikapatibleTest is Test {
         pikaExample.ownerOf(1);
     }
 
-    // ensure mint fails when called with amount parameter == 0
-    function testRevert_mintWrongAmount() public {
+    // ensure skipping mints when called with amount parameter == 0
+    function test_mintWrongAmount() public {
         vm.deal(address(settlement), priceInGweth);
 
-        bytes4 e = IERC721A.MintZeroQuantity.selector;
-        vm.expectRevert(e);
         vm.prank(address(settlement));
         pikaExample.mint{ value: priceInGweth }(address(this), 0);
 
-        uint256 zero = pikaExample.balanceOf(address(settlement));
+        uint256 none = pikaExample.totalSupply();
+        assertEq(none, 0);
+        uint256 zero = pikaExample.balanceOf(address(this));
         assertEq(zero, 0);
+        vm.expectRevert();
+        pikaExample.ownerOf(0);
     }
 
     // ensure mint fails when insufficient funds are provided
@@ -92,5 +103,23 @@ contract PikapatibleTest is Test {
         bytes4 e = IERC721A.OwnerQueryForNonexistentToken.selector;
         vm.expectRevert(e);
         pikaExample.ownerOf(1);
+    }
+
+    // ensure mint fails when provided amount exceeding maxSupply
+    function test_mintExceedsMaxSupply() public {
+        uint256 excess = maxSupply += 1;
+        vm.deal(address(settlement), priceInGweth * excess);
+        
+        vm.prank(address(settlement));
+        pikaExample.mint{ value: address(settlement).balance }(address(this), excess);
+
+        uint256 zero = pikaExample.balanceOf(address(settlement));
+        assertEq(zero, 0);
+
+        bytes4 e = IERC721A.OwnerQueryForNonexistentToken.selector;
+        vm.expectRevert(e);
+        pikaExample.ownerOf(1);
+        vm.expectRevert(e);
+        pikaExample.ownerOf(excess);
     }
 }
