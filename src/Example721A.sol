@@ -30,7 +30,9 @@ contract Example721A is ERC721A, Pikapatible {
     /// @notice This is the only function that needs to be implemented by an NFT project wishing to mint using PikaPool's engine,
     /// metadata formats of all kinds are supported (IPFS, Arweave, on-chain etc)
     function tokenURI(uint256 tokenId) public pure override returns (string memory) {
-        // placeholder Pikachu ASCII art hosted on Arweave, created and deployed by 0xViola
-        return "ar://mOZLYUUSsy1V9U7qGETfN1eSU9Hv42eB7zGrxsCQbUk";
+        // 200 custom art pieces hosted by PikaPool, created with Dalle by 0xArceus
+        string memory baseURI = "https://pikapool.cool/cryptopikachus/img/";
+        uint256 mod = tokenId % 200; // reuse jsons for tokenIds > 200
+        return string.concat(baseURI, LibString.toString(mod), ".json");
     }
 }
