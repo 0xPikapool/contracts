@@ -13,7 +13,7 @@ address payable constant mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD90
 /// It does not need to be instantiated directly since it is abstract and parent to Settlement
 contract BidSignaturesTest is
     Test,
-    Settlement(mainnetWETH, 30)
+    Settlement()
 {
     /// @dev Error to revert execution if ecrecover returns invalid signature originator
     error InvalidSignature();

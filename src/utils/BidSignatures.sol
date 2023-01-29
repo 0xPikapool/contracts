@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: AGPL
 pragma solidity ^0.8.13;
 
+import "openzeppelin-contracts/proxy/utils/Initializable.sol";
+
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xViola, 0xArceus, and PikaPool Developers
 
 /// @dev This contract is abstract and inherited by the Settlement contract, 
 /// providing the Bid struct type as well as the EIP712 hashing logic and variables to create the domain separator
 
-abstract contract BidSignatures {
+abstract contract BidSignatures is Initializable {
 
     /// @dev Struct of bid data to be hashed and signed for meta-transactions.
     /// @param auctionName The name of the creator's NFT collection being auctioned
@@ -45,19 +47,16 @@ abstract contract BidSignatures {
 
     /// @dev The EIP-712 domain separator, computed in the constructor using the current chain id and settlement
     /// contract's own address to prevent replay attacks across networks
-    bytes32 public immutable DOMAIN_SEPARATOR;
-
-    constructor() {
-        DOMAIN_SEPARATOR = keccak256(
+    bytes32 public immutable DOMAIN_SEPARATOR = 
+        keccak256(
             abi.encode(
-                DOMAIN_TYPE_HASH,
-                DOMAIN_NAME,
-                DOMAIN_VERSION,
-                block.chainid,
-                address(this)
-            )
+            DOMAIN_TYPE_HASH,
+            DOMAIN_NAME,
+            DOMAIN_VERSION,
+            block.chainid,
+            address(this)
+        )
         );
-    }
 
     /// @dev Function to compute hash of a PikaPool bid
     /// @param bid The Bid struct to be hashed

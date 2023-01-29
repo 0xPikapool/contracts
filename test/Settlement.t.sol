@@ -9,7 +9,7 @@ import "../src/utils/BidSignatures.sol";
 
 address payable constant mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
-contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
+contract SettlementTest is Test, Settlement() {
 
     Example721A public pikaExample;
 

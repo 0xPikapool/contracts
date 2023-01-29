@@ -86,8 +86,8 @@ contract Settlement is BidSignatures {
         bytes32 s;
     }
 
-    /// @dev WETH contract for this chain, set in constructor
-    WETH public immutable weth;
+    /// @dev WETH contract for this chain
+    WETH public weth;
 
     /// @dev Maximum mint threshold amount to prevent excessive first-time token transfer costs
     /// @dev Stored in storage for gas optimization (as opposed to repeated mstores)
@@ -102,7 +102,11 @@ contract Settlement is BidSignatures {
     /// @param reason The reason for the signature's failure. This can be one of several potential issues and is helpful for debugging.
     event SettlementFailure(address indexed bidder, bytes reason);
 
-    constructor(address payable _wethAddress, uint256 _mintMax) {
+    constructor() {
+        _disableInitializers();
+    }
+
+    function init(address payable _wethAddress, uint256 _mintMax) public initializer {
         weth = WETH(_wethAddress);
         mintMax = _mintMax;
     }
