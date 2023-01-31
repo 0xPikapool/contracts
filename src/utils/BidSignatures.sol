@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: AGPL
 pragma solidity ^0.8.13;
 
-import "openzeppelin-contracts/proxy/utils/Initializable.sol";
-
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xViola, 0xArceus, and PikaPool Developers
 
 /// @dev This contract is abstract and inherited by the Settlement contract, 
 /// providing the Bid struct type as well as the EIP712 hashing logic and variables to create the domain separator
 
-abstract contract BidSignatures is Initializable {
+abstract contract BidSignatures {
 
     /// @dev Struct of bid data to be hashed and signed for meta-transactions.
     /// @param auctionName The name of the creator's NFT collection being auctioned
