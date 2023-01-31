@@ -572,40 +572,22 @@ function test_settle() public {
         proxysWETH.approve(address(proxyDeoxys), 1 ether);
         assertEq(proxysWETH.allowance(bidder3, address(proxyDeoxys)), 1 ether);
 
-        // prepare digests
-        bytes32 digest = settlement.hashTypedData(bid1);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
+        (uint8 v, bytes32 r, bytes32 s) = _prepareAndSignDigest(bid1, bidder1PrivateKey);
         Signature memory signature1 = Signature({
             bid: bid1,
             v: v,
             r: r,
             s: s
         });
-        bytes32 digest2 = settlement.hashTypedData(bid2);
-        (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(bidder2PrivateKey, digest2);
-        Signature memory signature2 = Signature({
-            bid: bid2,
-            v: v2,
-            r: r2,
-            s: s2
-        });
-        bytes32 digest3 = settlement.hashTypedData(bid3);
-        (uint8 v3, bytes32 r3, bytes32 s3) = vm.sign(bidder3PrivateKey, digest3);
-        Signature memory signature3 = Signature({
-            bid: bid3,
-            v: v3,
-            r: r3,
-            s: s3
-        });
 
-        // intentionally fail a signature submission via allowance to attempt replay attack
-        Signature[] memory signature = new Signature[](1);
-        signature[0] = signature1;
+        // create signature array, first intentionally failing a signature submission via allowance to attempt replay attack
+        Signature[] memory signatures = new Signature[](3);
+        signatures[1] = signature1;
 
         // assert SettlementFailure event is emitted with "Payment Failed" reason
         vm.expectEmit(true, true, false, true);
         emit SettlementFailure(signature1.bid.bidder, "Payment Failed");
-        (bool f,) = address(proxyDeoxys).call(abi.encodeWithSelector(this.finalizeAuction.selector, signature));
+        (bool f,) = address(proxyDeoxys).call(abi.encodeWithSelector(this.finalizeAuction.selector, signatures));
         assertTrue(f);
 
         // assert payment was not completed
@@ -624,27 +606,38 @@ function test_settle() public {
         bool spentSig = proxyDeoxys.spentSigNonces(sigHash);
         assertTrue(spentSig);
 
+        (uint8 v2, bytes32 r2, bytes32 s2) = _prepareAndSignDigest(bid2, bidder2PrivateKey);
+        Signature memory signature2 = Signature({
+            bid: bid2,
+            v: v2,
+            r: r2,
+            s: s2
+        });
+        (uint8 v3, bytes32 r3, bytes32 s3) = _prepareAndSignDigest(bid3, bidder3PrivateKey);
+        Signature memory signature3 = Signature({
+            bid: bid3,
+            v: v3,
+            r: r3,
+            s: s3
+        });
+
+        signatures[0] = signature3;
+        signatures[2] = signature2;
+
+        // calculate expected payment amount
+        uint256 finalPayment = _calculateTotal(signature2) + _calculateTotal(signature3);
+
         // bidder1 belatedly makes approval
         vm.prank(bidder1);
         proxysWETH.approve(address(settlement), 1 ether);
         assertEq(proxysWETH.allowance(bidder1, address(settlement)), 1 ether);
 
-        // calculate expected payment amount
-        uint256 finalPayment = (bid2.amount * bid2.basePrice + bid2.tip) + (bid3.amount * bid3.basePrice + bid3.tip);
-
-        // create signature array
-        Signature[] memory signatures = new Signature[](3);
-        signatures[0] = signature3;
-        signatures[1] = signature1;
-        signatures[2] = signature2;
-
         // assert SettlementFailure event is emitted with "Payment Failed" reason
         vm.expectEmit(true, true, false, true);
         emit SettlementFailure(signature1.bid.bidder, "Spent Sig");
         // attempt signature replay attack
-        // (bool g,) = 
-        address(proxyDeoxys).call(abi.encodeWithSelector(this.finalizeAuction.selector, signatures));
-        // assertTrue(g);
+        (bool g,) = address(proxyDeoxys).call(abi.encodeWithSelector(this.finalizeAuction.selector, signatures));
+        assertTrue(g);
 
         // assert payment completed only for signature2 and signature3
         assertEq(address(pikaExample).balance, finalPayment);
@@ -753,5 +746,16 @@ function test_settle() public {
         assertEq(tenMax.totalSupply(), five.amount);
         assertEq(tenMax.balanceOf(bidder1), five.amount);
         assertEq(tenMax.balanceOf(bidder2), 0);
+    }
+
+    /// @dev Internal helper functions to alleviate the occurrance of the dreaded 'sTaCk tOo DeEp' error
+    function _prepareAndSignDigest(Bid memory _bid, uint256 _privateKey) internal view returns (uint8 _v, bytes32 _r, bytes32 _s) {
+            // prepare digest
+            bytes32 digest = settlement.hashTypedData(_bid);
+            (_v, _r, _s) = vm.sign(_privateKey, digest);
+        }
+
+    function _calculateTotal(Signature memory _sig) internal pure returns (uint256) {
+        return _sig.bid.amount * _sig.bid.basePrice + _sig.bid.tip;
     }
 }

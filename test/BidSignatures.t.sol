@@ -55,7 +55,7 @@ contract BidSignaturesTest is
             auctionName: name,
             auctionAddress: address(pikaExample),
             bidder: bidder1,
-            amount: mintMax,
+            amount: 69,
             basePrice: priceInGweth,
             tip: 69
         });

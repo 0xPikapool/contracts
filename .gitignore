@@ -13,3 +13,6 @@ users.json
 .env
 .env.*
 environment.d.ts
+
+# todo files
+todo.md
