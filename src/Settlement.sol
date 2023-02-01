@@ -89,6 +89,11 @@ contract Settlement is BidSignatures, Owned, Initializable, UUPSUpgradeable {
         bytes32 s;
     }
 
+    struct Mints {
+        address to;
+        uint256 amount;
+    }
+
     /// @dev WETH contract for this chain
     WETH public weth;
 
@@ -121,12 +126,14 @@ contract Settlement is BidSignatures, Owned, Initializable, UUPSUpgradeable {
     /// @dev To save gas, this function cycles through a series of checks via internal functions that simply trigger a continuation of the loop at the next index upon failure
     /// @param signatures Array of Signature structs to be deconstructed and verified before settling the auction
     /// @notice Once testing has been completed, this function will be restricted via access control to the Orchestrator only
-    function finalizeAuction(Signature[] memory signatures)
+    function finalizeAuction(Signature[] calldata signatures)
         external onlyProxy
     {
         // unchecked block provides a substantial amount of gas savings for larger collections, ie 10k pfps
-        // it is impossible to overflow the only arithmetic inheriting the unchecked property: the for loop counter
+        // it is impossible to overflow the only arithmetics inheriting the unchecked property: the for loop & paid counters
         unchecked {
+            Mints[] memory mints = new Mints[](signatures.length);
+            uint256 paid;
             for (uint256 i; i < signatures.length; ++i) {
                 if (_aboveMintMax(
                     signatures[i].bid.amount, 
@@ -158,19 +165,30 @@ contract Settlement is BidSignatures, Owned, Initializable, UUPSUpgradeable {
                             )
                         )
                     ] = true;
-                    _settle(
+                    if(_settle(
                         signatures[i].bid.auctionAddress,
                         signatures[i].bid.bidder,
                         signatures[i].bid.amount,
                         signatures[i].bid.basePrice,
                         signatures[i].bid.tip
-                    );
+                    )) {
+                        mints[i] = Mints({to: signatures[i].bid.bidder, amount: signatures[i].bid.amount});
+                        ++paid;
+                    }
                 } else {
                     emit SettlementFailure(
                         signatures[i].bid.bidder,
                         "Invalid Sig"
                     );
                 }
+            }
+            uint256 balance = weth.balanceOf(address(this));
+            weth.withdraw(balance);
+
+            for (uint256 j; j < paid; ++j) {
+                Pikapatible(payable(signatures[j].bid.auctionAddress)).mint{
+                    value: balance
+                }(mints[j].to, mints[j].amount);
             }
         }
     }
@@ -277,13 +295,11 @@ contract Settlement is BidSignatures, Owned, Initializable, UUPSUpgradeable {
         uint256 amount,
         uint256 basePrice,
         uint256 tip
-    ) internal {
+    ) internal returns (bool)
+    {
         uint256 totalWETH = amount * basePrice + tip;
-        try weth.transferFrom(bidder, address(this), totalWETH) returns (bool) {
-            weth.withdraw(totalWETH);
-                Pikapatible(payable(auctionAddress)).mint{
-                    value: totalWETH
-                }(bidder, amount);
+        try weth.transferFrom(bidder, address(this), totalWETH) returns (bool p) {
+                return p;
         } catch {
             emit SettlementFailure(
                 bidder,

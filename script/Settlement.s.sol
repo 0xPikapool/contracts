@@ -12,7 +12,7 @@ import "../src/Example721A.sol";
 /// For proxy and logic implementation deployments, use ./ProxyDeoxys.s.sol instead
 contract SettlementScript is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("pk");
+        uint256 deployerPrivateKey = vm.envUint("PK");
         vm.startBroadcast(deployerPrivateKey);
 
         // address payable mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);

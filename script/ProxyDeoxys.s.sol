@@ -13,7 +13,7 @@ import "../src/Example721A.sol";
 /// For immutable, non-upgradeable deployments, use ./Settlement.s.sol instead
 contract ProxyDeoxysScript is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("pk");
+        uint256 deployerPrivateKey = vm.envUint("PK");
         vm.startBroadcast(deployerPrivateKey);
 
         // choose network here before deploying
