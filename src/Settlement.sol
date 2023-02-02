@@ -89,11 +89,6 @@ contract Settlement is BidSignatures, Owned, Initializable, UUPSUpgradeable {
         bytes32 s;
     }
 
-    struct Mints {
-        address to;
-        uint256 amount;
-    }
-
     /// @dev WETH contract for this chain
     WETH public weth;
 
@@ -130,10 +125,9 @@ contract Settlement is BidSignatures, Owned, Initializable, UUPSUpgradeable {
         external onlyProxy
     {
         // unchecked block provides a substantial amount of gas savings for larger collections, ie 10k pfps
-        // it is impossible to overflow the only arithmetics inheriting the unchecked property: the for loop & paid counters
+        // it is impossible to overflow the only arithmetics inheriting the unchecked property: the for loop incrementor
         unchecked {
-            Mints[] memory mints = new Mints[](signatures.length);
-            uint256 paid;
+            Bid[] memory mints = new Bid[](signatures.length);
             for (uint256 i; i < signatures.length; ++i) {
                 if (_aboveMintMax(
                     signatures[i].bid.amount, 
@@ -165,15 +159,8 @@ contract Settlement is BidSignatures, Owned, Initializable, UUPSUpgradeable {
                             )
                         )
                     ] = true;
-                    if(_settle(
-                        signatures[i].bid.auctionAddress,
-                        signatures[i].bid.bidder,
-                        signatures[i].bid.amount,
-                        signatures[i].bid.basePrice,
-                        signatures[i].bid.tip
-                    )) {
-                        mints[i] = Mints({to: signatures[i].bid.bidder, amount: signatures[i].bid.amount});
-                        ++paid;
+                    if(_settle(signatures[i].bid)) {
+                        mints[i] = signatures[i].bid;
                     }
                 } else {
                     emit SettlementFailure(
@@ -185,10 +172,12 @@ contract Settlement is BidSignatures, Owned, Initializable, UUPSUpgradeable {
             uint256 balance = weth.balanceOf(address(this));
             weth.withdraw(balance);
 
-            for (uint256 j; j < paid; ++j) {
-                Pikapatible(payable(signatures[j].bid.auctionAddress)).mint{
-                    value: balance
-                }(mints[j].to, mints[j].amount);
+            for (uint256 j; j < mints.length; ++j) {
+                // ignore uninitialized slots; counter does not help in this case
+                if (mints[j].auctionAddress == address(0x0)) continue;
+                Pikapatible(payable(mints[j].auctionAddress)).mint{
+                    value: mints[j].amount * mints[j].basePrice + mints[j].tip
+                }(mints[j].bidder, mints[j].amount);
             }
         }
     }
@@ -284,25 +273,14 @@ contract Settlement is BidSignatures, Owned, Initializable, UUPSUpgradeable {
     }
 
     /// @dev Internal function that finalizes the settlements upon verification of signatures
-    /// @param auctionAddress The address of the creator NFT being bid on. Becomes a string off-chain.
-    /// @param bidder The address of the winning bid's originator, in this case comparable to tx.origin.
-    /// @param amount The number of assets being bid on.
-    /// @param basePrice The base price per NFT set by the collection's creator
-    /// @param tip The tip per NFT offered by the bidder in order to win a mint in the auction
-    function _settle(
-        address auctionAddress,
-        address bidder,
-        uint256 amount,
-        uint256 basePrice,
-        uint256 tip
-    ) internal returns (bool)
-    {
-        uint256 totalWETH = amount * basePrice + tip;
-        try weth.transferFrom(bidder, address(this), totalWETH) returns (bool p) {
+    /// @param _bid The bid on behalf of which payment is attempted
+    function _settle(Bid memory _bid) internal returns (bool) {
+        uint256 totalWETH = _bid.amount * _bid.basePrice + _bid.tip;
+        try weth.transferFrom(_bid.bidder, address(this), totalWETH) returns (bool p) {
                 return p;
         } catch {
             emit SettlementFailure(
-                bidder,
+                _bid.bidder,
                 "Payment Failed"
             );
         }
