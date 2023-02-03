@@ -23,7 +23,7 @@ contract PikapatibleTest is Test {
     function setUp() public {
         name = "PikaExample";
         symbol = "PIKA";
-        settlement = new Settlement();
+        settlement = new Settlement(mainnetWETH, type(uint256).max);
         priceInGweth = 69;
         maxSupply = 10;
         // zero address used as placeholder for revenue recipient

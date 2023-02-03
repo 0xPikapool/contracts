@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
 import "../src/proxy/ProxyDeoxys.sol";
-import "../src/Settlement.sol";
+import "../src/proxy/SettlementUUPS.sol";
 import "../src/Example721A.sol";
 
 /// @title PikaPool Protocol Upgradeable Proxy Deployment Script
@@ -26,8 +26,8 @@ contract ProxyDeoxysScript is Script {
         uint256 price = 69;
     
         // using goerli weth address, PikaPool dev placeholder address as recipient
-        bytes memory initData = abi.encodeWithSelector(Settlement.init.selector, goerliWETH, maximumSettleAmt);
-        Settlement settlement = new Settlement();
+        bytes memory initData = abi.encodeWithSelector(SettlementUUPS.init.selector, goerliWETH, maximumSettleAmt);
+        SettlementUUPS settlement = new SettlementUUPS();
         ProxyDeoxys proxyDeoxys = new ProxyDeoxys(address(settlement), initData);
         Example721A pikaExample = new Example721A(
             "PikaExample", 

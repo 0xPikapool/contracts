@@ -62,8 +62,11 @@ pragma solidity ^0.8.13;
 */
 
 import "solmate/tokens/WETH.sol";
-import "./utils/BidSignatures.sol";
-import "./utils/Pikapatible.sol";
+import "solmate/auth/Owned.sol";
+import "openzeppelin-contracts/proxy/utils/UUPSUpgradeable.sol";
+import "openzeppelin-contracts/proxy/utils/Initializable.sol";
+import "../utils/BidSignatures.sol";
+import "../utils/Pikapatible.sol";
 
 /// @title PikaPool Protocol Settlement Contract
 /// @author 0xViola and PikaPool Developers
@@ -72,7 +75,7 @@ import "./utils/Pikapatible.sol";
 /// for 721A NFTs that extend the Pikapatible plugin. It need only ever be called by the PikaPool orchestrator,
 /// which provides an array of bid signatures to mint NFTs to the winning bidders
 
-contract Settlement is BidSignatures {
+contract SettlementUUPS is BidSignatures, Owned, Initializable, UUPSUpgradeable {
 
     /// @dev Struct of signature data for winning bids to be deconstructed and validated to mint NFTs
     /// @param bid The winning bid fed to this Settlement contract by the Orchestrator
@@ -102,7 +105,14 @@ contract Settlement is BidSignatures {
     /// @param reason The reason for the signature's failure. This can be one of several potential issues and is helpful for debugging.
     event SettlementFailure(address indexed bidder, bytes reason);
 
-    constructor(address payable _wethAddress, uint256 _mintMax) {
+    constructor() Owned(msg.sender) {
+        _disableInitializers();
+    }
+
+    /// @dev Initializer function to replace any state modification that would otherwise be part of a constructor
+    /// @param _wethAddress The address for canonical WETH9 on this chain.
+    /// @param _mintMax The maximum number of NFTs to be minted in a single batch transaction.
+    function init(address payable _wethAddress, uint256 _mintMax) public initializer {
         weth = WETH(_wethAddress);
         mintMax = _mintMax;
     }
@@ -112,7 +122,7 @@ contract Settlement is BidSignatures {
     /// @param signatures Array of Signature structs to be deconstructed and verified before settling the auction
     /// @notice Once testing has been completed, this function will be restricted via access control to the Orchestrator only
     function finalizeAuction(Signature[] calldata signatures)
-        external
+        external onlyProxy
     {
         // unchecked block provides a substantial amount of gas savings for larger collections, ie 10k pfps
         // it is impossible to overflow the only arithmetics inheriting the unchecked property: the for loop incrementor
@@ -275,6 +285,11 @@ contract Settlement is BidSignatures {
             );
         }
     }
+
+    /// @dev Internal function to handle an override required by OZ's UUPSUpgradeable parent contract
+    /// @dev This function will revert unless called by the Pikapool team, in this case the original deployer
+    /// @param newImplementation The address of the new target implementation contract for 1967 delegation
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     receive() external payable {}
 }
