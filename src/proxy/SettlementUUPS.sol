@@ -114,6 +114,7 @@ contract SettlementUUPS is BidSignatures, Owned, Initializable, UUPSUpgradeable 
     /// @param _wethAddress The address for canonical WETH9 on this chain.
     /// @param _mintMax The maximum number of NFTs to be minted in a single batch transaction.
     function init(address payable _wethAddress, uint256 _mintMax) public initializer {
+        owner = tx.origin;
         weth = WETH(_wethAddress);
         mintMax = _mintMax;
     }

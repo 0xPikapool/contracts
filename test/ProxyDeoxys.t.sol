@@ -10,7 +10,7 @@ import "../src/proxy/ProxyDeoxys.sol";
 
 address payable constant mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
-contract ProxyDeoxysTest is Test, SettlementUUPS {
+contract ProxyDeoxysTest is Test {
 
     SettlementUUPS public settlement;
     ProxyDeoxys public proxyDeoxys;
@@ -25,15 +25,13 @@ contract ProxyDeoxysTest is Test, SettlementUUPS {
     uint256 public priceInGweth;
     uint256 public maxSupply;
     uint256 public typeMax;
+    uint256 public _mintMax;
     uint256 internal bidder1PrivateKey;
     uint256 internal bidder2PrivateKey;
     uint256 internal bidder3PrivateKey;
     address internal bidder1;
     address internal bidder2;
     address internal bidder3;
-    BidSignatures.Bid bid1;
-    BidSignatures.Bid bid2;
-    BidSignatures.Bid bid3;
     bytes public err;
     bytes public data;
 
@@ -46,7 +44,8 @@ contract ProxyDeoxysTest is Test, SettlementUUPS {
         vm.selectFork(mainnetFork);
 
         typeMax = type(uint256).max;
-        data = abi.encodeWithSelector(this.init.selector, mainnetWETH, typeMax);
+        _mintMax = 30;
+        data = abi.encodeWithSelector(settlement.init.selector, mainnetWETH, _mintMax);
         settlement = new SettlementUUPS();
         proxyDeoxys = new ProxyDeoxys(address(settlement), data);
         proxysWETH = WETH(proxyDeoxys.weth());
@@ -88,48 +87,28 @@ contract ProxyDeoxysTest is Test, SettlementUUPS {
         vm.deal(bidder3, 1 ether);
         vm.prank(bidder3);
         proxysWETH.deposit{ value: 1 ether }();
-
-        // prepare bids
-        bid1 = BidSignatures.Bid({
-            auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
-            bidder: bidder1,
-            amount: mintMax,
-            basePrice: priceInGweth,
-            tip: 69
-        });
-
-        bid2 = BidSignatures.Bid({
-            auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
-            bidder: bidder2,
-            amount: mintMax,
-            basePrice: priceInGweth,
-            tip: 42
-        });
-
-        bid3 = BidSignatures.Bid({
-            auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
-            bidder: bidder3,
-            amount: 12,
-            basePrice: priceInGweth,
-            tip: 420
-        });
     }
 
     function test_setUp() public {
         assertEq(vm.activeFork(), mainnetFork);
         assertEq(address(proxyDeoxys.weth()), mainnetWETH);
-        assertEq(proxyDeoxys.mintMax(), typeMax);
+        assertEq(proxyDeoxys.mintMax(), _mintMax);
         assertEq(settlement.owner(), address(this));
+        bytes memory _owner = abi.encodeWithSelector(settlement.owner.selector);
+        (bool r, bytes memory owner) = address(proxyDeoxys).call(_owner);
+        assertEq(address(uint160(uint256(bytes32(owner)))), tx.origin);
         assertEq(proxysWETH.balanceOf(bidder1), 1 ether);
         assertEq(proxysWETH.balanceOf(bidder2), 1 ether);
         assertEq(proxysWETH.balanceOf(bidder3), 1 ether);
     }
+
+    function test_Upgrade() public {
+        SettlementUUPS newSettlement = new SettlementUUPS();
+        vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
+        bytes memory upgrade = abi.encodeWithSelector(settlement.upgradeTo.selector, address(newSettlement));
+        address(proxyDeoxys).call(upgrade);
+    }
 }
 // function to test implementation contract is set properly
-// function to test owner set properly
 // function to test init can not be called again
-// function to test upgrade logic
 // function to prove storage layouts are equivalent

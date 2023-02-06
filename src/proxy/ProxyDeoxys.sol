@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "solmate/tokens/WETH.sol";
+import "./SettlementUUPS.sol";
 
 contract ProxyDeoxys is ERC1967Proxy {
 
