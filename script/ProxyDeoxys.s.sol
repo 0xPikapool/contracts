@@ -25,7 +25,7 @@ contract ProxyDeoxysScript is Script {
         uint256 maximumNftSupply = type(uint256).max;
         uint256 price = 69;
     
-        // using goerli weth address, PikaPool dev placeholder address as recipient
+        // using goerli weth address
         bytes memory initData = abi.encodeWithSelector(SettlementUUPS.init.selector, goerliWETH, maximumSettleAmt);
         SettlementUUPS settlement = new SettlementUUPS();
         ProxyDeoxys proxyDeoxys = new ProxyDeoxys(address(settlement), initData);

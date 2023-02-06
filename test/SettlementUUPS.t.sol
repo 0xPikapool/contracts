@@ -25,6 +25,7 @@ contract SettlementUUPSTest is Test, SettlementUUPS {
     uint256 public priceInGweth;
     uint256 public maxSupply;
     uint256 public typeMax;
+    uint256 public _mintMax;
     uint256 internal bidder1PrivateKey;
     uint256 internal bidder2PrivateKey;
     uint256 internal bidder3PrivateKey;
@@ -45,8 +46,8 @@ contract SettlementUUPSTest is Test, SettlementUUPS {
         mainnetFork = vm.createFork(MAINNET_RPC_URL);
         vm.selectFork(mainnetFork);
 
-        typeMax = type(uint256).max;
-        data = abi.encodeWithSelector(this.init.selector, mainnetWETH, typeMax);
+        _mintMax = 30;
+        data = abi.encodeWithSelector(this.init.selector, mainnetWETH, _mintMax);
         settlement = new SettlementUUPS();
         proxyDeoxys = new ProxyDeoxys(address(settlement), data);
         proxysWETH = WETH(proxyDeoxys.weth());
@@ -94,7 +95,7 @@ contract SettlementUUPSTest is Test, SettlementUUPS {
             auctionName: "TestNFT",
             auctionAddress: address(pikaExample),
             bidder: bidder1,
-            amount: mintMax,
+            amount: _mintMax,
             basePrice: priceInGweth,
             tip: 69
         });
@@ -103,7 +104,7 @@ contract SettlementUUPSTest is Test, SettlementUUPS {
             auctionName: "TestNFT",
             auctionAddress: address(pikaExample),
             bidder: bidder2,
-            amount: mintMax,
+            amount: _mintMax,
             basePrice: priceInGweth,
             tip: 42
         });
@@ -121,7 +122,7 @@ contract SettlementUUPSTest is Test, SettlementUUPS {
     function test_setUp() public {
         assertEq(vm.activeFork(), mainnetFork);
         assertEq(address(proxyDeoxys.weth()), mainnetWETH);
-        assertEq(proxyDeoxys.mintMax(), typeMax);
+        assertEq(proxyDeoxys.mintMax(), _mintMax);
         assertEq(settlement.owner(), address(this));
         assertEq(proxysWETH.balanceOf(bidder1), 1 ether);
         assertEq(proxysWETH.balanceOf(bidder2), 1 ether);
@@ -212,8 +213,8 @@ function test_settle() public {
         uint256 totalWeth = bid1.amount * bid1.basePrice + bid1.tip;
         // bidder1 approves totalWeth amount to weth contract
         vm.prank(bidder1);
-        proxysWETH.approve(address(settlement), totalWeth);
-        assertEq(proxysWETH.allowance(bidder1, address(settlement)), totalWeth);
+        proxysWETH.approve(address(proxyDeoxys), totalWeth);
+        assertEq(proxysWETH.allowance(bidder1, address(proxyDeoxys)), totalWeth);
 
         bytes32 digest = settlement.hashTypedData(bid1);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
@@ -227,8 +228,8 @@ function test_settle() public {
         // repeat for bidder2
         uint256 totalWeth2 = bid2.amount * bid2.basePrice + bid2.tip;
         vm.prank(bidder2);
-        proxysWETH.approve(address(settlement), totalWeth2);
-        assertEq(proxysWETH.allowance(bidder2, address(settlement)), totalWeth2);
+        proxysWETH.approve(address(proxyDeoxys), totalWeth2);
+        assertEq(proxysWETH.allowance(bidder2, address(proxyDeoxys)), totalWeth2);
 
         bytes32 digest2 = settlement.hashTypedData(bid2);
         (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(bidder2PrivateKey, digest2);

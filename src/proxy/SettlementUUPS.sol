@@ -106,6 +106,7 @@ contract SettlementUUPS is BidSignatures, Owned, Initializable, UUPSUpgradeable 
     event SettlementFailure(address indexed bidder, bytes reason);
 
     constructor() Owned(msg.sender) {
+        mintMax = type(uint256).max; // proxy is intended for testing only
         _disableInitializers();
     }
 
