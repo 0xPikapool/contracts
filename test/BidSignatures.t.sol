@@ -23,6 +23,7 @@ contract BidSignaturesTest is
     BidSignatures.Bid bid;
     uint256 public priceInGweth;
     uint256 public maxSupply;
+    uint256 public allocatedSupply;
     string name;
     string symbol;
     uint256 internal bidder1PrivateKey;
@@ -35,6 +36,7 @@ contract BidSignaturesTest is
         symbol = "PIKA";
         priceInGweth = 69;
         maxSupply = type(uint256).max;
+        allocatedSupply = maxSupply / 2;
 
         // zero address used as placeholder for revenue recipient
         pikaExample = new Example721A(
@@ -43,7 +45,8 @@ contract BidSignaturesTest is
             address(this),
             address(0x0),
             priceInGweth,
-            maxSupply
+            maxSupply,
+            allocatedSupply
         );
 
         // prepare the cow carcass private key with which to sign

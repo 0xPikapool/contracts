@@ -23,6 +23,7 @@ contract ProxyDeoxysScript is Script {
         // set maximum and price here before deploying
         uint256 maximumSettleAmt = type(uint256).max;
         uint256 maximumNftSupply = type(uint256).max;
+        uint256 allocatedSupply = maximumNftSupply / 2;
         uint256 price = 69;
     
         // using goerli weth address
@@ -35,7 +36,8 @@ contract ProxyDeoxysScript is Script {
             address(settlement), 
             address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180), 
             price,
-            maximumNftSupply
+            maximumNftSupply,
+            allocatedSupply
         );
 
         // // using mainnet weth address

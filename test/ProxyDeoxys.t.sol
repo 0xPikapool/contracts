@@ -24,6 +24,7 @@ contract ProxyDeoxysTest is Test {
     string symbol;
     uint256 public priceInGweth;
     uint256 public maxSupply;
+    uint256 public allocatedSupply;
     uint256 public typeMax;
     uint256 public _mintMax;
     uint256 internal bidder1PrivateKey;
@@ -54,6 +55,7 @@ contract ProxyDeoxysTest is Test {
         symbol = "PIKA";
         priceInGweth = 69;
         maxSupply = type(uint256).max;
+        allocatedSupply = maxSupply / 2;
         // zero address used as placeholder for revenue recipient
         pikaExample = new Example721A(
             name, 
@@ -61,7 +63,8 @@ contract ProxyDeoxysTest is Test {
             address(proxyDeoxys), 
             address(0x0), 
             priceInGweth,
-            maxSupply
+            maxSupply,
+            allocatedSupply
         );
 
         // prepare the cow carcass beefy baby private keys with which to sign

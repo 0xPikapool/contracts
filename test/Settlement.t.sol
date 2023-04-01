@@ -20,6 +20,7 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
     string symbol;
     uint256 public priceInGweth;
     uint256 public maxSupply;
+    uint256 public allocatedSupply;
     uint256 internal bidder1PrivateKey;
     uint256 internal bidder2PrivateKey;
     uint256 internal bidder3PrivateKey;
@@ -43,6 +44,7 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
         symbol = "PIKA";
         priceInGweth = 69;
         maxSupply = type(uint256).max;
+        allocatedSupply = maxSupply / 2;
         // zero address used as placeholder for revenue recipient
         pikaExample = new Example721A(
             name, 
@@ -50,7 +52,8 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
             address(this), 
             address(0x0), 
             priceInGweth,
-            maxSupply
+            maxSupply,
+            allocatedSupply
         );
 
         // prepare the cow carcass private key with which to sign
@@ -626,7 +629,8 @@ function test_settle() public {
             address(this), 
             address(0x0), 
             10,
-            10
+            10,
+            5
         );
 
         BidSignatures.Bid memory five = Bid({

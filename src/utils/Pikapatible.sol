@@ -19,6 +19,10 @@ abstract contract Pikapatible is ERC721A, Owned {
     uint256 public price;
     /// @dev The collection's total maximum supply
     uint256 public maxSupply;
+    /// @dev The collection's total allocation to Pikapool's auction engine
+    uint256 public allocatedSupply;
+    /// @dev The collection's count of Pikapool's allocated mints
+    uint256 public allocatedMints;
 
     /// @dev Event emitted upon any failure to mint 
     /// used instead of reverts to ensure finality for successful mints even in the case of failures interspersed within the batch
@@ -31,12 +35,14 @@ abstract contract Pikapatible is ERC721A, Owned {
         address _settlementContract, 
         address _recipient, 
         uint256 _priceInWei,
-        uint256 _maxSupply
+        uint256 _maxSupply,
+        uint256 _allocatedSupply
     ) Owned(_settlementContract)
     {
         recipient = _recipient;
         price = _priceInWei;
         maxSupply = _maxSupply;
+        allocatedSupply = _allocatedSupply;
     }
 
     /// @notice May only be called by the Settlement contract
@@ -47,11 +53,12 @@ abstract contract Pikapatible is ERC721A, Owned {
     /// @param to The bidder address to mint to, provided a sufficient bid was offered
     /// @param amount The number of NFTs to mint to the bidder
     function mint(address to, uint256 amount) external payable onlyOwner {
-        if (_nextTokenId() + amount > maxSupply) { 
+        if (_nextTokenId() + amount > maxSupply || allocatedMints + amount > allocatedSupply) { 
             emit MintFailure(to, bytes('Exceeds Max'));
             return;
         }
         if (amount != 0 && msg.value >= price * amount) {
+            allocatedMints += amount;
             _mint(to, amount);
         }
     }
