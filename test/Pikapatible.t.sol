@@ -53,7 +53,7 @@ contract PikapatibleTest is Test {
     function test_mint() public {
         vm.deal(address(settlement), priceInGweth);
         vm.prank(address(settlement));
-        pikaExample.mint{ value: priceInGweth }(address(settlement), 1);
+        pikaExample.pikapoolMint{ value: priceInGweth }(address(settlement), 1);
 
         uint256 one = pikaExample.balanceOf(address(settlement));
         assertEq(one, 1);
@@ -68,7 +68,7 @@ contract PikapatibleTest is Test {
         vm.deal(address(this), priceInGweth);
         err = bytes("UNAUTHORIZED");
         vm.expectRevert(err);
-        pikaExample.mint{ value: priceInGweth }(address(this), 1);
+        pikaExample.pikapoolMint{ value: priceInGweth }(address(this), 1);
 
         uint256 zero = pikaExample.balanceOf(address(this));
         assertEq(zero, 0);
@@ -83,7 +83,7 @@ contract PikapatibleTest is Test {
         vm.deal(address(settlement), priceInGweth);
 
         vm.prank(address(settlement));
-        pikaExample.mint{ value: priceInGweth }(address(this), 0);
+        pikaExample.pikapoolMint{ value: priceInGweth }(address(this), 0);
 
         uint256 none = pikaExample.totalSupply();
         assertEq(none, 0);
@@ -98,7 +98,7 @@ contract PikapatibleTest is Test {
         vm.deal(address(settlement), priceInGweth - 1);
 
         vm.prank(address(settlement));
-        pikaExample.mint{ value: address(settlement).balance }(address(this), 1);
+        pikaExample.pikapoolMint{ value: address(settlement).balance }(address(this), 1);
 
         uint256 zero = pikaExample.balanceOf(address(settlement));
         assertEq(zero, 0);
@@ -114,7 +114,7 @@ contract PikapatibleTest is Test {
         vm.deal(address(settlement), priceInGweth * excess);
         
         vm.prank(address(settlement));
-        pikaExample.mint{ value: address(settlement).balance }(address(this), excess);
+        pikaExample.pikapoolMint{ value: address(settlement).balance }(address(this), excess);
 
         uint256 zero = pikaExample.balanceOf(address(settlement));
         assertEq(zero, 0);
@@ -135,7 +135,7 @@ contract PikapatibleTest is Test {
         vm.deal(address(settlement), priceInGweth * allocationExcess);
 
         vm.prank(address(settlement));
-        pikaExample.mint{ value: address(settlement).balance }(address(this), allocationExcess);
+        pikaExample.pikapoolMint{ value: address(settlement).balance }(address(this), allocationExcess);
 
         uint256 zero = pikaExample.balanceOf(address(settlement));
         assertEq(zero, 0);

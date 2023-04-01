@@ -38,4 +38,8 @@ contract Example721A is ERC721A, Pikapatible {
         uint256 mod = tokenId % 200; // reuse jsons for tokenIds > 200
         return string.concat(baseURI, LibString.toString(mod), ".json");
     }
+
+    function publicMint(address to, uint256 amount) public payable override {
+        _mint(to, amount);
+    }
 }

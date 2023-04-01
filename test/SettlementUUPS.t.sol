@@ -185,7 +185,7 @@ function test_settle() public {
                 vm.prank(address(proxyDeoxys));
                 proxysWETH.withdraw(totalWETH);
                 vm.prank(address(proxyDeoxys));
-                Pikapatible(payable(bid1.auctionAddress)).mint{
+                Pikapatible(payable(bid1.auctionAddress)).pikapoolMint{
                     value: totalWETH
                 }(bid1.bidder, bid1.amount);
             } catch {
