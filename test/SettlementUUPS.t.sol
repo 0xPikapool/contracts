@@ -754,6 +754,24 @@ function test_settle() public {
     }
 
     /// @dev Internal helper functions to alleviate the occurrance of the dreaded 'sTaCk tOo DeEp' error
+    function _generateBid(
+        string memory _auctionName,
+        address _auctionAddress,
+        address _bidder,
+        uint256 _amount,
+        uint256 _basePrice,
+        uint256 _tip
+    ) internal pure returns (BidSignatures.Bid memory) {
+        return (BidSignatures.Bid({
+            auctionName: _auctionName,
+            auctionAddress: _auctionAddress,
+            bidder: _bidder,
+            amount: _amount,
+            basePrice: _basePrice,
+            tip: _tip
+        }));
+    }
+    
     function _prepareAndSignDigest(Bid memory _bid, uint256 _privateKey) internal view returns (uint8 _v, bytes32 _r, bytes32 _s) {
             // prepare digest
             bytes32 digest = settlement.hashTypedData(_bid);

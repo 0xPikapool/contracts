@@ -3,110 +3,13 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "solmate/tokens/WETH.sol";
-import "../src/Settlement.sol";
-import "../src/Example721A.sol";
-import "../src/utils/BidSignatures.sol";
+import "./utils/TestUtils.sol";
 
-address payable constant mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-
-contract SettlementTest is Test, Settlement(mainnetWETH, 200) {
-
-    Example721A public pikaExample;
-
-    uint256 mainnetFork;
-    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
-
-    string name;
-    string symbol;
-    uint256 public priceInGweth;
-    uint256 public maxSupply;
-    uint256 public allocatedSupply;
-    uint256 internal bidder1PrivateKey;
-    uint256 internal bidder2PrivateKey;
-    uint256 internal bidder3PrivateKey;
-    address internal bidder1;
-    address internal bidder2;
-    address internal bidder3;
-    BidSignatures.Bid bid1;
-    BidSignatures.Bid bid2;
-    BidSignatures.Bid bid3;
-    bytes public err;
-
-    // ERC721A transfer
-    event Transfer(address indexed from, address indexed to, uint256 indexed id);
+contract SettlementTest is TestUtils { 
 
     // initialize test environment
     function setUp() public {
-        mainnetFork = vm.createFork(MAINNET_RPC_URL);
-        vm.selectFork(mainnetFork);
-
-        name = "PikaExample";
-        symbol = "PIKA";
-        priceInGweth = 69;
-        maxSupply = type(uint256).max;
-        allocatedSupply = 100;
-        // zero address used as placeholder for revenue recipient
-        pikaExample = new Example721A(
-            name, 
-            symbol, 
-            address(this), 
-            address(0x0), 
-            priceInGweth,
-            maxSupply,
-            allocatedSupply
-        );
-
-        // prepare the cow carcass private key with which to sign
-        bidder1PrivateKey = 0xDEADBEEF;
-        bidder1 = vm.addr(bidder1PrivateKey);
-        // seed cow carcass bidder1 with 1 eth and wrap it to weth
-        vm.deal(bidder1, 1 ether);
-        vm.prank(bidder1);
-        weth.deposit{ value: 1 ether }();
-
-        // create new beefy bidder for second signature
-        bidder2PrivateKey = 0xBEEF;
-        bidder2 = vm.addr(bidder2PrivateKey);
-        // seed cow bidder with 1 eth and wrap it to weth
-        vm.deal(bidder2, 1 ether);
-        vm.prank(bidder2);
-        weth.deposit{ value: 1 ether }();
-
-        // create new beefy bidder for third signature
-        bidder3PrivateKey = 0xBABE;
-        bidder3 = vm.addr(bidder3PrivateKey);
-        // seed cow bidder with 1 eth and wrap it to weth
-        vm.deal(bidder3, 1 ether);
-        vm.prank(bidder3);
-        weth.deposit{ value: 1 ether }();
-
-        // prepare bids
-        bid1 = BidSignatures.Bid({
-            auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
-            bidder: bidder1,
-            amount: 30,
-            basePrice: priceInGweth,
-            tip: 69
-        });
-
-        bid2 = BidSignatures.Bid({
-            auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
-            bidder: bidder2,
-            amount: 42,
-            basePrice: priceInGweth,
-            tip: 42
-        });
-
-        bid3 = BidSignatures.Bid({
-            auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
-            bidder: bidder3,
-            amount: 12,
-            basePrice: priceInGweth,
-            tip: 420
-        });
+        
     }
 
     function test_setUp() public {
@@ -223,7 +126,7 @@ function test_settle() public {
             auctionAddress: address(pikaExample),
             bidder: bidder1,
             amount: 0,
-            basePrice: priceInGweth,
+            basePrice: auctionPriceA,
             tip: 69
         });
 
@@ -688,39 +591,15 @@ function test_settle() public {
 
     // ensure mints that exceed allocated supply within batches are skipped and emit MintFailure
     function test_finalizeAuctionExceedsAllocatedSupply() public {
-        BidSignatures.Bid memory allocatedMinus10 = Bid({
-            auctionName: "PikaExample",
-            auctionAddress: address(pikaExample),
-            bidder: bidder1,
-            amount: allocatedSupply - 10,
-            basePrice: priceInGweth,
-            tip: 0
-        });
-
-        BidSignatures.Bid memory overFlow = Bid({
-            auctionName: "PikaExample",
-            auctionAddress: address(pikaExample),
-            bidder: bidder2,
-            amount: 11, // will result in overflow, allocatedMintsCounter += amount > allocatedSupply
-            basePrice: priceInGweth,
-            tip: 1
-        });
-
-        BidSignatures.Bid memory justRight = Bid({
-            auctionName: "PikaExample",
-            auctionAddress: address(pikaExample),
-            bidder: bidder3,
-            amount: 10,
-            basePrice: priceInGweth,
-            tip: 2
-        });
-
+        uint256 wethTotal1 = allocatedMinus10.amount * (allocatedMinus10.basePrice + allocatedMinus10.tip);
         vm.prank(bidder1);
-        weth.approve(address(this), type(uint256).max);
+        weth.approve(address(this), wethTotal1);
+        uint256 wethTotal2 = overFlow.amount * (overFlow.basePrice + overFlow.tip);
         vm.prank(bidder2);
-        weth.approve(address(this), type(uint256).max);
+        weth.approve(address(this), wethTotal2);
+        uint256 wethTotal3 = justRight.amount * (justRight.basePrice + justRight.tip);
         vm.prank(bidder3);
-        weth.approve(address(this), type(uint256).max);
+        weth.approve(address(this), wethTotal3);
 
         bytes32 digestAllocatedMinus10 = hashTypedData(allocatedMinus10);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digestAllocatedMinus10);
