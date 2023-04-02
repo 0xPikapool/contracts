@@ -102,15 +102,15 @@ function test_settle() public {
         this.finalizeAuction(signatures);
 
         // assert payments were processed correctly
-        assertEq(pikaExample.balanceOf(bidder1), bid1.amount);
-        assertEq(pikaExample.balanceOf(bidder2), bid2.amount);
+        assertEq(auctionA.balanceOf(bidder1), bid1.amount);
+        assertEq(auctionA.balanceOf(bidder2), bid2.amount);
         assertEq(weth.balanceOf(address(this)), 0);
         
         // assert owners of nfts are correct
         // ERC721A defaults to _startTokenId() == 0, causing _currentIndex to be 0
         // that is acceptable for this test, projects wishing to begin tokenIds at 1 should override that function
         for (uint i; i < bid1.amount + bid2.amount; ++i) {
-            address recipient = pikaExample.ownerOf(i);
+            address recipient = auctionA.ownerOf(i);
             if (i < bid1.amount) {
                 assertEq(recipient, bidder1);
             } else {
@@ -123,7 +123,7 @@ function test_settle() public {
         // create bid with 0 as amount
         BidSignatures.Bid memory bid0 = Bid({
             auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
+            auctionAddress: address(auctionA),
             bidder: bidder1,
             amount: 0,
             basePrice: auctionPriceA,
@@ -150,12 +150,12 @@ function test_settle() public {
         this.finalizeAuction(signatures);
 
         // check that no mints occurred without reverts
-        uint256 zero = pikaExample.totalSupply();
+        uint256 zero = auctionA.totalSupply();
         assertEq(zero, 0);
-        uint256 none = pikaExample.balanceOf(bid0.bidder);
+        uint256 none = auctionA.balanceOf(bid0.bidder);
         assertEq(none, 0);
         vm.expectRevert();
-        pikaExample.ownerOf(0);
+        auctionA.ownerOf(0);
     }
 
     function test_skipSingleInsufficientApproval() public {
@@ -179,7 +179,7 @@ function test_settle() public {
         // assert WETH transfer was not completed
         assertEq(weth.balanceOf(address(this)), 0);
         // assert NFT was not minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), 0);
+        assertEq(auctionA.balanceOf(bidder1), 0);
 
         // bid and finalize with nonzero but insufficient approval
         vm.prank(bidder2);
@@ -205,7 +205,7 @@ function test_settle() public {
         // assert WETH transfer was not completed
         assertEq(weth.balanceOf(address(this)), 0);
         // assert NFT was not minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), 0);
+        assertEq(auctionA.balanceOf(bidder1), 0);
     }
 
     function test_skipInsufficientApprovals() public {
@@ -269,19 +269,19 @@ function test_settle() public {
         this.finalizeAuction(signatures);
 
         // assert WETH transfers were completed by bidder1, bidder3
-        assertEq(address(pikaExample).balance, finalPayment);
+        assertEq(address(auctionA).balance, finalPayment);
         assertEq(weth.balanceOf(address(this)), 0);
 
         // assert NFTs were minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), bid1.amount);
+        assertEq(auctionA.balanceOf(bidder1), bid1.amount);
         // assert NFTs were NOT minted to bidder2
-        assertEq(pikaExample.balanceOf(bidder2), 0);
+        assertEq(auctionA.balanceOf(bidder2), 0);
         // assert NFTs were minted to bidder3
-        assertEq(pikaExample.balanceOf(bidder3), bid3.amount);
+        assertEq(auctionA.balanceOf(bidder3), bid3.amount);
 
         // assert correct NFT ownership
-        for (uint i; i < pikaExample.totalSupply(); ++i) {
-            address recipient = pikaExample.ownerOf(i);
+        for (uint i; i < auctionA.totalSupply(); ++i) {
+            address recipient = auctionA.ownerOf(i);
             if (i < bid1.amount) {
                 assertEq(recipient, bidder1);
             } else {
@@ -324,9 +324,9 @@ function test_settle() public {
         // assert WETH transfer was not completed due to insufficient balamnce
         assertEq(weth.balanceOf(address(this)), 0);
         // assert NFT was not minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), 0);
-        // assert pikaExample did not receive any eth
-        assertEq(address(pikaExample).balance, 0);
+        assertEq(auctionA.balanceOf(bidder1), 0);
+        // assert auctionA did not receive any eth
+        assertEq(address(auctionA).balance, 0);
     }
 
         // test skipping insufficient balances within multiple signatures
@@ -392,14 +392,14 @@ function test_settle() public {
             assertEq(weth.balanceOf(bidder1), 1 ether - (bid1.amount * bid1.basePrice + bid1.tip));
             assertEq(weth.balanceOf(bidder2), 1 ether - (bid2.amount * bid2.basePrice + bid2.tip));
             assertEq(weth.balanceOf(address(this)), 0);
-            assertEq(address(pikaExample).balance, finalPayment);
+            assertEq(address(auctionA).balance, finalPayment);
 
             // assert NFTs were minted to bidder1, bidder3
-            assertEq(pikaExample.balanceOf(bidder1), bid1.amount);
-            assertEq(pikaExample.balanceOf(bidder2), bid2.amount);
+            assertEq(auctionA.balanceOf(bidder1), bid1.amount);
+            assertEq(auctionA.balanceOf(bidder2), bid2.amount);
 
             // assert NFT was not minted to bidder3
-            assertEq(pikaExample.balanceOf(bidder3), 0);
+            assertEq(auctionA.balanceOf(bidder3), 0);
     }
 
     function test_skipSpentSigNonces() public {
@@ -446,9 +446,9 @@ function test_settle() public {
         emit SettlementFailure(signature1.bid.bidder, "Payment Failed");
         this.finalizeAuction(signature);
         // assert payment was not completed
-        assertEq(address(pikaExample).balance, 0);
+        assertEq(address(auctionA).balance, 0);
         // assert NFT was not minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), 0);
+        assertEq(auctionA.balanceOf(bidder1), 0);
         // assert signature was marked spent
         bytes32 sigHash = 
             keccak256(
@@ -482,12 +482,12 @@ function test_settle() public {
         this.finalizeAuction(signatures);
 
         // assert payment completed only for signature2 and signature3
-        assertEq(address(pikaExample).balance, finalPayment);
+        assertEq(address(auctionA).balance, finalPayment);
         // assert NFT was not minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), 0);
+        assertEq(auctionA.balanceOf(bidder1), 0);
         // assert NFTs were minted to bidder2 and bidder3
-        assertEq(pikaExample.balanceOf(bidder2), bid2.amount);
-        assertEq(pikaExample.balanceOf(bidder3), bid3.amount);
+        assertEq(auctionA.balanceOf(bidder2), bid2.amount);
+        assertEq(auctionA.balanceOf(bidder3), bid3.amount);
         // assert signature still marked spent
         bool stillSpent = spentSigNonces[sigHash];
         assertTrue(stillSpent);
@@ -497,7 +497,7 @@ function test_settle() public {
     function test_settleUncheckedCannotOverflow() public {
         Bid memory overflowBid = Bid({
             auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
+            auctionAddress: address(auctionA),
             bidder: bidder1,
             amount: 30,
             basePrice: type(uint256).max,
@@ -637,9 +637,28 @@ function test_settle() public {
 
         // assert only the first bid successfully minted as the second exceeded maxSupply
         uint256 amountToMint = allocatedMinus10.amount + justRight.amount;
-        assertEq(pikaExample.totalSupply(), amountToMint);
-        assertEq(pikaExample.balanceOf(bidder1), allocatedMinus10.amount);
-        assertEq(pikaExample.balanceOf(bidder2), 0); // overflow failure
-        assertEq(pikaExample.balanceOf(bidder3), justRight.amount);
+        assertEq(auctionA.totalSupply(), amountToMint);
+        assertEq(auctionA.balanceOf(bidder1), allocatedMinus10.amount);
+        assertEq(auctionA.balanceOf(bidder2), 0); // overflow failure
+        assertEq(auctionA.balanceOf(bidder3), justRight.amount);
+    }
+
+    // ensure Settlement contract is capable of handling multiple ongoing auctions at once
+    function test_multipleOngoingAuctions() public {
+        // users sign bids to submit for auction A
+        (uint8 v1a, bytes32 r1a, bytes32 s1a) = _prepareAndSignDigest(bid1, bidder1PrivateKey);
+        Signature memory sig1a = _generateSig(bid1, v1a, r1a, s1a);
+        (uint8 v2a, bytes32 r2a, bytes32 s2a) = _prepareAndSignDigest(bid2, bidder2PrivateKey);
+        Signature memory sig2a = _generateSig(bid2, v2a, r2a, s2a);
+        (uint8 v3a, bytes32 r3a, bytes32 s3a) = _prepareAndSignDigest(bid3, bidder3PrivateKey);
+        Signature memory sig3a = _generateSig(bid3, v3a, r3a, s3a);
+        // users sign bids to submit for auction B
+
+        // users sign bids to submit for auction C
+
+        // initialize signature arrays for multiple ongoing auction settlement
+        Signature[] memory auctionOneSigs = new Signature[](3);
+        Signature[] memory auctionTwoSigs = new Signature[](3);
+        Signature[] memory auctionThreeSigs = new Signature[](3);
     }
 }

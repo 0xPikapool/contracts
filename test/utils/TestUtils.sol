@@ -11,7 +11,7 @@ address payable constant mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD90
 
 abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
 
-    Example721A public pikaExample;
+    Example721A public auctionA;
     Example721A public auctionB;
     Example721A public auctionC;
 
@@ -63,8 +63,8 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
         allocatedSupplyC = 150;
 
         // zero address used as placeholder for revenue recipient
-        pikaExample = _generateAuction(
-            "PikaExample", 
+        auctionA = _generateAuction(
+            "auctionA", 
             "PIKA", 
             address(this), 
             address(0x0), 
@@ -120,7 +120,7 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
         // prepare bids
         bid1 = _generateBid(
             "TestNFT",
-            address(pikaExample),
+            address(auctionA),
             bidder1,
             30,
             auctionPriceA,
@@ -129,7 +129,7 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
 
         bid2 = _generateBid(
             "TestNFT",
-            address(pikaExample),
+            address(auctionA),
             bidder2,
             42,
             auctionPriceA,
@@ -138,7 +138,7 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
 
         bid3 = _generateBid(
             "TestNFT",
-            address(pikaExample),
+            address(auctionA),
             bidder3,
             12,
             auctionPriceA,
@@ -147,8 +147,8 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
 
         // bids for test_allocatedSupply
         allocatedMinus10 = _generateBid(
-            "PikaExample",
-            address(pikaExample),
+            "auctionA",
+            address(auctionA),
             bidder1,
             allocatedSupplyA - 10,
             auctionPriceA,
@@ -156,8 +156,8 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
         );
 
         overFlow = _generateBid(
-            "PikaExample",
-            address(pikaExample),
+            "auctionA",
+            address(auctionA),
             bidder2,
             11, // set to result in overflow, allocatedMints += amount > allocatedSupply
             auctionPriceA,
@@ -165,8 +165,8 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
         );
 
         justRight = _generateBid(
-            "PikaExample",
-            address(pikaExample),
+            "auctionA",
+            address(auctionA),
             bidder3,
             10,
             auctionPriceA,
