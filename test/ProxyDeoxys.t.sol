@@ -11,23 +11,10 @@ contract ProxyDeoxysTest is TestUtils {
     ProxyDeoxys public proxyDeoxys;
     WETH public proxysWETH;
 
-    uint256 mainnetFork;
-    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
-
     string name;
     string symbol;
-    uint256 public priceInGweth;
-    uint256 public maxSupply;
-    uint256 public allocatedSupply;
     uint256 public typeMax;
     uint256 public _mintMax;
-    uint256 internal bidder1PrivateKey;
-    uint256 internal bidder2PrivateKey;
-    uint256 internal bidder3PrivateKey;
-    address internal bidder1;
-    address internal bidder2;
-    address internal bidder3;
-    bytes public err;
     bytes public data;
 
     // ERC721A transfer
@@ -35,8 +22,6 @@ contract ProxyDeoxysTest is TestUtils {
 
     // initialize test environment
     function setUp() public {
-        // mainnetFork = vm.createFork(MAINNET_RPC_URL);
-        // vm.selectFork(mainnetFork);
 
         typeMax = type(uint256).max;
         _mintMax = 30;
