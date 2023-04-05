@@ -1,21 +1,15 @@
 // SPDX-License-Identifier: AGPL
 pragma solidity ^0.8.13;
 
-import "forge-std/Test.sol";
-import "solmate/tokens/WETH.sol";
 import "../src/proxy/SettlementUUPS.sol";
-import "../src/Example721A.sol";
-import "../src/utils/BidSignatures.sol";
 import "../src/proxy/ProxyDeoxys.sol";
+import "./utils/TestUtils.sol";
 
-address payable constant mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-
-contract ProxyDeoxysTest is Test {
+contract ProxyDeoxysTest is TestUtils {
 
     SettlementUUPS public settlement;
     ProxyDeoxys public proxyDeoxys;
     WETH public proxysWETH;
-    Example721A public pikaExample;
 
     uint256 mainnetFork;
     string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
@@ -41,8 +35,8 @@ contract ProxyDeoxysTest is Test {
 
     // initialize test environment
     function setUp() public {
-        mainnetFork = vm.createFork(MAINNET_RPC_URL);
-        vm.selectFork(mainnetFork);
+        // mainnetFork = vm.createFork(MAINNET_RPC_URL);
+        // vm.selectFork(mainnetFork);
 
         typeMax = type(uint256).max;
         _mintMax = 30;
@@ -112,6 +106,3 @@ contract ProxyDeoxysTest is Test {
         address(proxyDeoxys).call(upgrade);
     }
 }
-// function to test implementation contract is set properly
-// function to test init can not be called again
-// function to prove storage layouts are equivalent
