@@ -642,23 +642,4 @@ function test_settle() public {
         assertEq(auctionA.balanceOf(bidder2), 0); // overflow failure
         assertEq(auctionA.balanceOf(bidder3), justRight.amount);
     }
-
-    // ensure Settlement contract is capable of handling multiple ongoing auctions at once
-    function test_multipleOngoingAuctions() public {
-        // users sign bids to submit for auction A
-        (uint8 v1a, bytes32 r1a, bytes32 s1a) = _prepareAndSignDigest(bid1, bidder1PrivateKey);
-        Signature memory sig1a = _generateSig(bid1, v1a, r1a, s1a);
-        (uint8 v2a, bytes32 r2a, bytes32 s2a) = _prepareAndSignDigest(bid2, bidder2PrivateKey);
-        Signature memory sig2a = _generateSig(bid2, v2a, r2a, s2a);
-        (uint8 v3a, bytes32 r3a, bytes32 s3a) = _prepareAndSignDigest(bid3, bidder3PrivateKey);
-        Signature memory sig3a = _generateSig(bid3, v3a, r3a, s3a);
-        // users sign bids to submit for auction B
-
-        // users sign bids to submit for auction C
-
-        // initialize signature arrays for multiple ongoing auction settlement
-        Signature[] memory auctionOneSigs = new Signature[](3);
-        Signature[] memory auctionTwoSigs = new Signature[](3);
-        Signature[] memory auctionThreeSigs = new Signature[](3);
-    }
 }
