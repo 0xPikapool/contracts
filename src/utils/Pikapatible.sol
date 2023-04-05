@@ -22,7 +22,7 @@ abstract contract Pikapatible is ERC721A, Owned {
     /// @dev The collection's total allocation to Pikapool's auction engine
     uint256 public allocatedSupply;
     /// @dev The collection's count of Pikapool's allocated mints
-    uint256 public allocatedMints;
+    uint256 public allocatedMintsCounter;
 
     /// @dev Event emitted upon any failure to mint 
     /// used instead of reverts to ensure finality for successful mints even in the case of failures interspersed within the batch
@@ -46,19 +46,19 @@ abstract contract Pikapatible is ERC721A, Owned {
     }
 
     /// @notice May only be called by the Pikapool Settlement contract
-    /// @dev This pikapoolMint function can be attached to any ERC721A via inheritance to enjoy the benefits of the PikaPool auction engine
+    /// @dev This mint function can be attached to any ERC721A via inheritance to enjoy the benefits of the PikaPool auction engine
     /// @dev Will not mint if sent insufficient funds, avoiding reverts to facilitate PikaPool's settlement contract batch minting functionality
     /// @dev ERC721A's _safeMint() function is shirked here in favor of _mint, as all PikaPool mints 
     /// utilize meta-transactions which ensures no smart contracts can bid as they do not possess private keys with which to sign
     /// @param to The bidder address to mint to, provided a sufficient bid was offered
     /// @param amount The number of NFTs to mint to the bidder
-    function pikapoolMint(address to, uint256 amount) external payable onlyOwner {
-        if (_nextTokenId() + amount > maxSupply || allocatedMints + amount > allocatedSupply) { 
+    function mint(address to, uint256 amount) external payable onlyOwner {
+        if (_nextTokenId() + amount > maxSupply || allocatedMintsCounter + amount > allocatedSupply) { 
             emit MintFailure(to, bytes('Exceeds Max'));
             return;
         }
         if (amount != 0 && msg.value >= price * amount) {
-            allocatedMints += amount;
+            allocatedMintsCounter += amount;
             _mint(to, amount);
         }
     }

@@ -165,7 +165,7 @@ contract Settlement is BidSignatures {
             for (uint256 j; j < mints.length; ++j) {
                 // ignore uninitialized slots; counter does not help in this case
                 if (mints[j].auctionAddress == address(0x0)) continue;
-                Pikapatible(payable(mints[j].auctionAddress)).pikapoolMint{
+                Pikapatible(payable(mints[j].auctionAddress)).mint{
                     value: mints[j].amount * mints[j].basePrice + mints[j].tip
                 }(mints[j].bidder, mints[j].amount);
             }

@@ -701,7 +701,7 @@ function test_settle() public {
             auctionName: "PikaExample",
             auctionAddress: address(pikaExample),
             bidder: bidder2,
-            amount: 11, // will result in overflow, allocatedMints += amount > allocatedSupply
+            amount: 11, // will result in overflow, allocatedMintsCounter += amount > allocatedSupply
             basePrice: priceInGweth,
             tip: 1
         });
