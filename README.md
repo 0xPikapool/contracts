@@ -40,7 +40,7 @@ Then run tests with the --gas-report flag enabled
 forge test --gas-report
 ```
 
-## Deployment
+## Deployment of Contracts via Provided Scripts
 
 Deployment of these contracts can be performed in your preferred manner, though a deployment script is provided for your convenience in the `script` directory.
 
@@ -48,6 +48,15 @@ First load your environment variables from a .env file. The bare minimum will of
 
 ```sh
 source .env
+```
+
+/// here
+Identify which Script function signature you'd like to run, as three separate scenarios are provided for the Pikapool contract framework. 
+
+During alpha testing, Pikapool makes use of a 1967 Proxy that interfaces with an UUPS upgradeable proxy for testing stability. If your aim is to upgrade the logic implementation contract behind the 1967 proxy without changing the address of the proxy itself, use the following parameter:
+
+```sh
+--sig upgradeUUPS
 ```
 
 Then set constructor arguments in the script, ensuring that you have provided the correct WETH address for your desired chain and your desired maximum mint amount. Finally run the deployment script:

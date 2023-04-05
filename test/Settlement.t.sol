@@ -9,7 +9,7 @@ import "../src/utils/BidSignatures.sol";
 
 address payable constant mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
-contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
+contract SettlementTest is Test, Settlement(mainnetWETH, 200) {
 
     Example721A public pikaExample;
 
@@ -20,6 +20,7 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
     string symbol;
     uint256 public priceInGweth;
     uint256 public maxSupply;
+    uint256 public allocatedSupply;
     uint256 internal bidder1PrivateKey;
     uint256 internal bidder2PrivateKey;
     uint256 internal bidder3PrivateKey;
@@ -43,6 +44,7 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
         symbol = "PIKA";
         priceInGweth = 69;
         maxSupply = type(uint256).max;
+        allocatedSupply = 100;
         // zero address used as placeholder for revenue recipient
         pikaExample = new Example721A(
             name, 
@@ -50,7 +52,8 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
             address(this), 
             address(0x0), 
             priceInGweth,
-            maxSupply
+            maxSupply,
+            allocatedSupply
         );
 
         // prepare the cow carcass private key with which to sign
@@ -82,7 +85,7 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
             auctionName: "TestNFT",
             auctionAddress: address(pikaExample),
             bidder: bidder1,
-            amount: mintMax,
+            amount: 30,
             basePrice: priceInGweth,
             tip: 69
         });
@@ -91,7 +94,7 @@ contract SettlementTest is Test, Settlement(mainnetWETH, 30) {
             auctionName: "TestNFT",
             auctionAddress: address(pikaExample),
             bidder: bidder2,
-            amount: mintMax,
+            amount: 42,
             basePrice: priceInGweth,
             tip: 42
         });
@@ -617,7 +620,7 @@ function test_settle() public {
         this.finalizeAuction(cannotOverflow);
     }
 
-    // ensure mints that exceed maximum are skipped and emit MintFailure
+    // ensure mints that exceed maximum supply within batches are skipped and emit MintFailure
     function test_finalizeAuctionExceedsMaxSupply() public {
         // set up new example721A with lower max supply
         Example721A tenMax = new Example721A(
@@ -626,7 +629,8 @@ function test_settle() public {
             address(this), 
             address(0x0), 
             10,
-            10
+            10,
+            5
         );
 
         BidSignatures.Bid memory five = Bid({
@@ -680,5 +684,83 @@ function test_settle() public {
         assertEq(tenMax.totalSupply(), five.amount);
         assertEq(tenMax.balanceOf(bidder1), five.amount);
         assertEq(tenMax.balanceOf(bidder2), 0);
+    }
+
+    // ensure mints that exceed allocated supply within batches are skipped and emit MintFailure
+    function test_finalizeAuctionExceedsAllocatedSupply() public {
+        BidSignatures.Bid memory allocatedMinus10 = Bid({
+            auctionName: "PikaExample",
+            auctionAddress: address(pikaExample),
+            bidder: bidder1,
+            amount: allocatedSupply - 10,
+            basePrice: priceInGweth,
+            tip: 0
+        });
+
+        BidSignatures.Bid memory overFlow = Bid({
+            auctionName: "PikaExample",
+            auctionAddress: address(pikaExample),
+            bidder: bidder2,
+            amount: 11, // will result in overflow, allocatedMintsCounter += amount > allocatedSupply
+            basePrice: priceInGweth,
+            tip: 1
+        });
+
+        BidSignatures.Bid memory justRight = Bid({
+            auctionName: "PikaExample",
+            auctionAddress: address(pikaExample),
+            bidder: bidder3,
+            amount: 10,
+            basePrice: priceInGweth,
+            tip: 2
+        });
+
+        vm.prank(bidder1);
+        weth.approve(address(this), type(uint256).max);
+        vm.prank(bidder2);
+        weth.approve(address(this), type(uint256).max);
+        vm.prank(bidder3);
+        weth.approve(address(this), type(uint256).max);
+
+        bytes32 digestAllocatedMinus10 = hashTypedData(allocatedMinus10);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digestAllocatedMinus10);
+        Signature memory allocatedMinus10Sig = Signature({
+            bid: allocatedMinus10,
+            v: v,
+            r: r,
+            s: s
+        });
+
+        bytes32 digestOverFlow = hashTypedData(overFlow);
+        (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(bidder2PrivateKey, digestOverFlow);
+        Signature memory overFlowSig = Signature({
+            bid: overFlow,
+            v: v1,
+            r: r1,
+            s: s1
+        });
+
+        bytes32 digestJustRight = hashTypedData(justRight);
+        (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(bidder3PrivateKey, digestJustRight);
+        Signature memory justRightSig = Signature({
+            bid: justRight,
+            v: v2,
+            r: r2,
+            s: s2
+        });
+
+        Signature[] memory allocationOverflow = new Signature[](3);
+        allocationOverflow[0] = allocatedMinus10Sig;
+        allocationOverflow[1] = overFlowSig;
+        allocationOverflow[2] = justRightSig;
+
+        this.finalizeAuction(allocationOverflow);
+
+        // assert only the first bid successfully minted as the second exceeded maxSupply
+        uint256 amountToMint = allocatedMinus10.amount + justRight.amount;
+        assertEq(pikaExample.totalSupply(), amountToMint);
+        assertEq(pikaExample.balanceOf(bidder1), allocatedMinus10.amount);
+        assertEq(pikaExample.balanceOf(bidder2), 0); // overflow failure
+        assertEq(pikaExample.balanceOf(bidder3), justRight.amount);
     }
 }

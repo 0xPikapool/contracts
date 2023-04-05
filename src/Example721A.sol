@@ -24,8 +24,9 @@ contract Example721A is ERC721A, Pikapatible {
         address _settlementContract,
         address _recipient,
         uint256 _priceInWei,
-        uint256 _maxSupply
-    ) ERC721A(_name,_symbol) Pikapatible(_settlementContract, _recipient, _priceInWei, _maxSupply) {}
+        uint256 _maxSupply,
+        uint256 _allocatedSupply
+    ) ERC721A(_name,_symbol) Pikapatible(_settlementContract, _recipient, _priceInWei, _maxSupply, _allocatedSupply) {}
 
     /// @dev The tokenURI function that returns the NFT metadata, providing it for marketplaces or frontends viewing the NFT itself
     /// @param tokenId The unique (non-fungible) identifier of a specific NFT
@@ -36,5 +37,9 @@ contract Example721A is ERC721A, Pikapatible {
         string memory baseURI = "https://pikapool.cool/cryptopikachus/img/";
         uint256 mod = tokenId % 200; // reuse jsons for tokenIds > 200
         return string.concat(baseURI, LibString.toString(mod), ".json");
+    }
+
+    function publicMint(address to, uint256 amount) public payable override {
+        _mint(to, amount);
     }
 }

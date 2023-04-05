@@ -17,6 +17,7 @@ contract PikapatibleTest is Test {
     string symbol;
     uint256 priceInGweth;
     uint256 maxSupply;
+    uint256 allocatedSupply;
     bytes public err;
 
     // initialize test environment
@@ -26,6 +27,7 @@ contract PikapatibleTest is Test {
         settlement = new Settlement(mainnetWETH, type(uint256).max);
         priceInGweth = 69;
         maxSupply = 10;
+        allocatedSupply = 5;
         // zero address used as placeholder for revenue recipient
         pikaExample = new Example721A(
             name, 
@@ -33,7 +35,8 @@ contract PikapatibleTest is Test {
             address(settlement), 
             address(0x0), 
             priceInGweth,
-            maxSupply
+            maxSupply,
+            allocatedSupply
         );
         
         string memory name_ = pikaExample.name();
@@ -105,7 +108,7 @@ contract PikapatibleTest is Test {
         pikaExample.ownerOf(1);
     }
 
-    // ensure mint fails when provided amount exceeding maxSupply
+    // ensure mint fails when provided amount exceeds maxSupply
     function test_mintExceedsMaxSupply() public {
         uint256 excess = maxSupply += 1;
         vm.deal(address(settlement), priceInGweth * excess);
@@ -116,10 +119,34 @@ contract PikapatibleTest is Test {
         uint256 zero = pikaExample.balanceOf(address(settlement));
         assertEq(zero, 0);
 
+        uint zeroSupply = pikaExample.totalSupply();
+        assertEq(zeroSupply, 0);
+
         bytes4 e = IERC721A.OwnerQueryForNonexistentToken.selector;
         vm.expectRevert(e);
         pikaExample.ownerOf(1);
         vm.expectRevert(e);
         pikaExample.ownerOf(excess);
+    }
+
+    // ensure mint fails when provided amount exceeds allocatedSupply
+    function test_mintExceedsAllocatedSupply() public {
+        uint256 allocationExcess = allocatedSupply += 1;
+        vm.deal(address(settlement), priceInGweth * allocationExcess);
+
+        vm.prank(address(settlement));
+        pikaExample.mint{ value: address(settlement).balance }(address(this), allocationExcess);
+
+        uint256 zero = pikaExample.balanceOf(address(settlement));
+        assertEq(zero, 0);
+
+        uint256 zeroMints = pikaExample.allocatedMintsCounter();
+        assertEq(zeroMints, 0);
+
+        bytes4 e = IERC721A.OwnerQueryForNonexistentToken.selector;
+        vm.expectRevert(e);
+        pikaExample.ownerOf(1);
+        vm.expectRevert(e);
+        pikaExample.ownerOf(allocationExcess);
     }
 }

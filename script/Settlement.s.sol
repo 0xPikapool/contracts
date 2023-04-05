@@ -19,28 +19,30 @@ contract SettlementScript is Script {
         address payable goerliWETH = payable(0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6);
 
         // set maximum and price here before deploying!
-        uint256 maximum = type(uint256).max;
+        uint256 maximumSupply = type(uint256).max;
+        uint256 allocatedSupply = maximumSupply / 2;
         uint256 price = 69;
     
         // using goerli weth address, PikaPool dev placeholder address as recipient
-        Settlement settlement = new Settlement(goerliWETH, maximum);
+        Settlement settlement = new Settlement(goerliWETH, maximumSupply);
         Example721A pikaExample = new Example721A(
             "PikaExample", 
             "PIKA", 
             address(settlement), 
             address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180), 
             price,
-            maximum
+            maximumSupply,
+            allocatedSupply
         );
 
         // // using mainnet weth address
-        // Settlement settlement = new Settlement(mainnetWETH, maximum);
+        // Settlement settlement = new Settlement(mainnetWETH, maximumSupply);
         // Example721A pikaExample = new Example721A("PikaExample", 
         //     "PIKA", 
         //     address(settlement), 
         //     address(0x5d5d4d04B70BFe49ad7Aac8C4454536070dAf180), 
         //     price,
-        //     maximum
+        //     maximumSupply
         // );
 
         vm.stopBroadcast();
