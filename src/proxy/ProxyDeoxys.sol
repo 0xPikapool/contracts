@@ -23,5 +23,9 @@ contract ProxyDeoxys is ERC1967Proxy {
 
     constructor(address _logic, bytes memory _data) ERC1967Proxy(_logic, _data) payable {}
 
+    function getImpl() external view returns (address impl) {
+        return _implementation();
+    }
+
     receive() external payable override {}
 }

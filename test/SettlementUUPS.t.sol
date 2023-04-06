@@ -1,135 +1,72 @@
 // SPDX-License-Identifier: AGPL
 pragma solidity ^0.8.13;
+pragma abicoder v2;
 
-import "forge-std/Test.sol";
-import "solmate/tokens/WETH.sol";
 import "../src/proxy/SettlementUUPS.sol";
 import "../src/Example721A.sol";
 import "../src/utils/BidSignatures.sol";
 import "../src/proxy/ProxyDeoxys.sol";
-
-address payable constant mainnetWETH = payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+import "./utils/TestUtils.sol";
+import "./Settlement.t.sol";
 
 contract SettlementUUPSTest is Test, SettlementUUPS {
 
+    SettlementTest public testUtils;
+    Example721A public auctionA;
+    Example721A public auctionB;
+    Example721A public auctionC;
+
     SettlementUUPS public settlement;
     ProxyDeoxys public proxyDeoxys;
-    WETH public proxysWETH;
-    Example721A public pikaExample;
 
-    uint256 mainnetFork;
-    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
-
-    string name;
-    string symbol;
-    uint256 public priceInGweth;
-    uint256 public maxSupply;
-    uint256 public allocatedSupply;
     uint256 public typeMax;
-    uint256 public _mintMax;
     uint256 internal bidder1PrivateKey;
     uint256 internal bidder2PrivateKey;
     uint256 internal bidder3PrivateKey;
-    address internal bidder1;
-    address internal bidder2;
-    address internal bidder3;
+    address public bidder1;
+    address public bidder2;
+    address public bidder3;
     BidSignatures.Bid bid1;
     BidSignatures.Bid bid2;
     BidSignatures.Bid bid3;
-    bytes public err;
     bytes public data;
 
     // ERC721A transfer
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
     // initialize test environment
-    function setUp() public {
-        mainnetFork = vm.createFork(MAINNET_RPC_URL);
-        vm.selectFork(mainnetFork);
-
-        _mintMax = 30;
-        data = abi.encodeWithSelector(this.init.selector, mainnetWETH, _mintMax);
+    function setUp() public {        
+        testUtils = new SettlementTest();
+        data = abi.encodeWithSelector(this.init.selector, mainnetWETH, 200);
         settlement = new SettlementUUPS();
         proxyDeoxys = new ProxyDeoxys(address(settlement), data);
-        proxysWETH = WETH(proxyDeoxys.weth());
+        weth = proxyDeoxys.weth();
 
-        name = "PikaExample";
-        symbol = "PIKA";
-        priceInGweth = 69;
-        maxSupply = type(uint256).max;
-        allocatedSupply = maxSupply / 2;
-        // zero address used as placeholder for revenue recipient
-        pikaExample = new Example721A(
-            name, 
-            symbol, 
-            address(proxyDeoxys), 
-            address(0x0), 
-            priceInGweth,
-            maxSupply,
-            allocatedSupply
-        );
+        // reset TestUtils settlementAddress and regenerate auctions + bids for proxy-aligned access
+        testUtils.regenerateAuctionsAndBids(address(proxyDeoxys));
 
-        // prepare the cow carcass beefy baby private keys with which to sign
-        bidder1PrivateKey = 0xDEADBEEF;
-        bidder2PrivateKey = 0xBEEF;
-        bidder3PrivateKey = 0xBABE;
-
-        bidder1 = vm.addr(bidder1PrivateKey);
-        // seed cow carcass bidder1 with 1 eth and wrap it to weth
-        vm.deal(bidder1, 1 ether);
-        vm.prank(bidder1);
-        proxysWETH.deposit{ value: 1 ether }();
-
-        bidder2 = vm.addr(bidder2PrivateKey);
-        // seed beef bidder with 1 eth and wrap it to weth
-        vm.deal(bidder2, 1 ether);
-        vm.prank(bidder2);
-        proxysWETH.deposit{ value: 1 ether }();
-
- 
-        bidder3 = vm.addr(bidder3PrivateKey);
-        // seed babe bidder with 1 eth and wrap it to weth
-        vm.deal(bidder3, 1 ether);
-        vm.prank(bidder3);
-        proxysWETH.deposit{ value: 1 ether }();
-
-        // prepare bids
-        bid1 = BidSignatures.Bid({
-            auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
-            bidder: bidder1,
-            amount: _mintMax,
-            basePrice: priceInGweth,
-            tip: 69
-        });
-
-        bid2 = BidSignatures.Bid({
-            auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
-            bidder: bidder2,
-            amount: _mintMax,
-            basePrice: priceInGweth,
-            tip: 42
-        });
-
-        bid3 = BidSignatures.Bid({
-            auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
-            bidder: bidder3,
-            amount: 12,
-            basePrice: priceInGweth,
-            tip: 420
-        });
+        bidder1PrivateKey = testUtils.bidder1PrivateKey();
+        bidder2PrivateKey = testUtils.bidder2PrivateKey();
+        bidder3PrivateKey = testUtils.bidder3PrivateKey();
+        bidder1 = testUtils.bidder1();
+        bidder2 = testUtils.bidder2();
+        bidder3 = testUtils.bidder3();
+        bid1 = testUtils.getBids()[0];
+        bid2 = testUtils.getBids()[1];
+        bid3 = testUtils.getBids()[2];
+        auctionA = testUtils.auctionA();
+        auctionB = testUtils.auctionB();
+        auctionC = testUtils.auctionC();
     }
 
     function test_setUp() public {
-        assertEq(vm.activeFork(), mainnetFork);
+        assertEq(vm.activeFork(), testUtils.mainnetFork());
         assertEq(address(proxyDeoxys.weth()), mainnetWETH);
-        assertEq(proxyDeoxys.mintMax(), _mintMax);
+        assertEq(proxyDeoxys.mintMax(), 200);
         assertEq(settlement.owner(), address(this));
-        assertEq(proxysWETH.balanceOf(bidder1), 1 ether);
-        assertEq(proxysWETH.balanceOf(bidder2), 1 ether);
-        assertEq(proxysWETH.balanceOf(bidder3), 1 ether);
+        assertEq(weth.balanceOf(bidder1), 1 ether);
+        assertEq(weth.balanceOf(bidder2), 1 ether);
+        assertEq(weth.balanceOf(bidder3), 1 ether);
     }
 
 function test_settle() public {
@@ -137,8 +74,8 @@ function test_settle() public {
         uint256 totalWeth = bid1.amount * bid1.basePrice + bid1.tip;
         // bidder1 approves totalWeth amount to weth contract
         vm.prank(bidder1);
-        proxysWETH.approve(address(proxyDeoxys), totalWeth);
-        assertEq(proxysWETH.allowance(bidder1, address(proxyDeoxys)), totalWeth);
+        weth.approve(address(proxyDeoxys), totalWeth);
+        assertEq(weth.allowance(bidder1, address(proxyDeoxys)), totalWeth);
 
         bytes32 digest = settlement.hashTypedData(bid1);
 
@@ -180,11 +117,9 @@ function test_settle() public {
 
         if (settle) {
             uint256 totalWETH = bid1.amount * bid1.basePrice + bid1.tip;
-            vm.prank(address(proxyDeoxys));
-            try proxysWETH.transferFrom(bid1.bidder, address(proxyDeoxys), totalWETH) returns (bool) {
-                vm.prank(address(proxyDeoxys));
-                proxysWETH.withdraw(totalWETH);
-                vm.prank(address(proxyDeoxys));
+            vm.startPrank(address(proxyDeoxys));
+            try weth.transferFrom(bid1.bidder, address(proxyDeoxys), totalWETH) returns (bool) {
+                weth.withdraw(totalWETH);
                 Pikapatible(payable(bid1.auctionAddress)).mint{
                     value: totalWETH
                 }(bid1.bidder, bid1.amount);
@@ -194,19 +129,20 @@ function test_settle() public {
                     "Payment Failed"
                 );
             }
+            vm.stopPrank();
         }
 
         // assert weth payments were made
-        assertEq(proxysWETH.balanceOf(address(proxyDeoxys)), 0);
-        assertEq(address(pikaExample).balance, totalWeth);
+        assertEq(weth.balanceOf(address(proxyDeoxys)), 0);
+        assertEq(address(auctionA).balance, totalWeth);
 
         // assert NFT balances are correct
-        uint minted = pikaExample.balanceOf(bid1.bidder);
+        uint minted = auctionA.balanceOf(bid1.bidder);
         assertEq(minted, bid1.amount);
 
         // assert owner of minted NFTs is correct
         for (uint i; i < bid1.amount; ++i) {
-            address recipient = pikaExample.ownerOf(i);
+            address recipient = auctionA.ownerOf(i);
             assertEq(recipient, bid1.bidder);
         }
     }
@@ -216,8 +152,8 @@ function test_settle() public {
         uint256 totalWeth = bid1.amount * bid1.basePrice + bid1.tip;
         // bidder1 approves totalWeth amount to weth contract
         vm.prank(bidder1);
-        proxysWETH.approve(address(proxyDeoxys), totalWeth);
-        assertEq(proxysWETH.allowance(bidder1, address(proxyDeoxys)), totalWeth);
+        weth.approve(address(proxyDeoxys), totalWeth);
+        assertEq(weth.allowance(bidder1, address(proxyDeoxys)), totalWeth);
 
         bytes32 digest = settlement.hashTypedData(bid1);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
@@ -231,8 +167,8 @@ function test_settle() public {
         // repeat for bidder2
         uint256 totalWeth2 = bid2.amount * bid2.basePrice + bid2.tip;
         vm.prank(bidder2);
-        proxysWETH.approve(address(proxyDeoxys), totalWeth2);
-        assertEq(proxysWETH.allowance(bidder2, address(proxyDeoxys)), totalWeth2);
+        weth.approve(address(proxyDeoxys), totalWeth2);
+        assertEq(weth.allowance(bidder2, address(proxyDeoxys)), totalWeth2);
 
         bytes32 digest2 = settlement.hashTypedData(bid2);
         (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(bidder2PrivateKey, digest2);
@@ -261,15 +197,15 @@ function test_settle() public {
         assertTrue(f);
 
         // assert payments were processed correctly
-        assertEq(pikaExample.balanceOf(bidder1), bid1.amount);
-        assertEq(pikaExample.balanceOf(bidder2), bid2.amount);
-        assertEq(proxysWETH.balanceOf(address(settlement)), 0);
+        assertEq(auctionA.balanceOf(bidder1), bid1.amount);
+        assertEq(auctionA.balanceOf(bidder2), bid2.amount);
+        assertEq(weth.balanceOf(address(settlement)), 0);
         
         // assert owners of nfts are correct
         // ERC721A defaults to _startTokenId() == 0, causing _currentIndex to be 0
         // that is acceptable for this test, projects wishing to begin tokenIds at 1 should override that function
         for (uint i; i < bid1.amount + bid2.amount; ++i) {
-            address recipient = pikaExample.ownerOf(i);
+            address recipient = auctionA.ownerOf(i);
             if (i < bid1.amount) {
                 assertEq(recipient, bidder1);
             } else {
@@ -282,17 +218,17 @@ function test_settle() public {
         // create bid with 0 as amount
         BidSignatures.Bid memory bid0 = Bid({
             auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
+            auctionAddress: address(auctionA),
             bidder: bidder1,
             amount: 0,
-            basePrice: priceInGweth,
+            basePrice: testUtils.auctionPriceA(),
             tip: 69
         });
 
         // make approval
         vm.prank(bidder1);
-        proxysWETH.approve(address(settlement), bid0.tip);
-        assertEq(proxysWETH.allowance(bidder1, address(settlement)), bid0.tip);
+        weth.approve(address(settlement), bid0.tip);
+        assertEq(weth.allowance(bidder1, address(settlement)), bid0.tip);
 
         bytes32 digest = settlement.hashTypedData(bid0);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
@@ -310,12 +246,12 @@ function test_settle() public {
         assertTrue(f);
 
         // check that no mints occurred without reverts
-        uint256 zero = pikaExample.totalSupply();
+        uint256 zero = auctionA.totalSupply();
         assertEq(zero, 0);
-        uint256 none = pikaExample.balanceOf(bid0.bidder);
+        uint256 none = auctionA.balanceOf(bid0.bidder);
         assertEq(none, 0);
         vm.expectRevert();
-        pikaExample.ownerOf(0);
+        auctionA.ownerOf(0);
     }
 
     function test_skipSingleInsufficientApproval() public {
@@ -338,14 +274,14 @@ function test_settle() public {
         (bool f,) = address(proxyDeoxys).call(abi.encodeWithSelector(this.finalizeAuction.selector, signature));
         assertTrue(f);
         // assert WETH transfer was not completed
-        assertEq(proxysWETH.balanceOf(address(settlement)), 0);
+        assertEq(weth.balanceOf(address(settlement)), 0);
         // assert NFT was not minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), 0);
+        assertEq(auctionA.balanceOf(bidder1), 0);
 
         // bid and finalize with nonzero but insufficient approval
         vm.prank(bidder2);
-        proxysWETH.approve(address(settlement), 5);
-        assertEq(proxysWETH.allowance(bidder2, address(settlement)), 5);
+        weth.approve(address(settlement), 5);
+        assertEq(weth.allowance(bidder2, address(settlement)), 5);
 
         digest = settlement.hashTypedData(bid2);
         (v, r, s) = vm.sign(bidder2PrivateKey, digest);
@@ -365,9 +301,9 @@ function test_settle() public {
         assertTrue(g);
         
         // assert WETH transfer was not completed
-        assertEq(proxysWETH.balanceOf(address(settlement)), 0);
+        assertEq(weth.balanceOf(address(settlement)), 0);
         // assert NFT was not minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), 0);
+        assertEq(auctionA.balanceOf(bidder1), 0);
     }
 
     function test_skipInsufficientApprovals() public {
@@ -375,8 +311,8 @@ function test_settle() public {
         uint256 totalWeth = bid1.amount * bid1.basePrice + bid1.tip;
         // bidder1 approval
         vm.prank(bidder1);
-        proxysWETH.approve(address(proxyDeoxys), totalWeth);
-        assertEq(proxysWETH.allowance(bidder1, address(proxyDeoxys)), totalWeth);
+        weth.approve(address(proxyDeoxys), totalWeth);
+        assertEq(weth.allowance(bidder1, address(proxyDeoxys)), totalWeth);
 
         bytes32 digest = settlement.hashTypedData(bid1);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
@@ -390,8 +326,8 @@ function test_settle() public {
         // bidder2 does NOT provide sufficient approval
         uint256 notEnough = 10;
         vm.prank(bidder2);
-        proxysWETH.approve(address(proxyDeoxys), notEnough);
-        assertEq(proxysWETH.allowance(bidder2, address(proxyDeoxys)), notEnough);
+        weth.approve(address(proxyDeoxys), notEnough);
+        assertEq(weth.allowance(bidder2, address(proxyDeoxys)), notEnough);
 
         bytes32 digest2 = settlement.hashTypedData(bid2);
         (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(bidder2PrivateKey, digest2);
@@ -405,8 +341,8 @@ function test_settle() public {
         // bidder3 provides correct approval
         uint256 totalWeth3 = bid3.amount * bid3.basePrice + bid3.tip;
         vm.prank(bidder3);
-        proxysWETH.approve(address(proxyDeoxys), totalWeth3);
-        assertEq(proxysWETH.allowance(bidder3, address(proxyDeoxys)), totalWeth3);
+        weth.approve(address(proxyDeoxys), totalWeth3);
+        assertEq(weth.allowance(bidder3, address(proxyDeoxys)), totalWeth3);
 
         // compute final total of payment that should succeed upon settlement
         uint256 finalPayment = totalWeth + totalWeth3;
@@ -432,19 +368,19 @@ function test_settle() public {
         assertTrue(f);
 
         // assert WETH transfers were completed by bidder1, bidder3
-        assertEq(address(pikaExample).balance, finalPayment);
-        assertEq(proxysWETH.balanceOf(address(settlement)), 0);
+        assertEq(address(auctionA).balance, finalPayment);
+        assertEq(weth.balanceOf(address(settlement)), 0);
 
         // assert NFTs were minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), bid1.amount);
+        assertEq(auctionA.balanceOf(bidder1), bid1.amount);
         // assert NFTs were NOT minted to bidder2
-        assertEq(pikaExample.balanceOf(bidder2), 0);
+        assertEq(auctionA.balanceOf(bidder2), 0);
         // assert NFTs were minted to bidder3
-        assertEq(pikaExample.balanceOf(bidder3), bid3.amount);
+        assertEq(auctionA.balanceOf(bidder3), bid3.amount);
 
         // assert correct NFT ownership
-        for (uint i; i < pikaExample.totalSupply(); ++i) {
-            address recipient = pikaExample.ownerOf(i);
+        for (uint i; i < auctionA.totalSupply(); ++i) {
+            address recipient = auctionA.ownerOf(i);
             if (i < bid1.amount) {
                 assertEq(recipient, bidder1);
             } else {
@@ -459,13 +395,13 @@ function test_settle() public {
         uint256 totalWeth = bid1.amount * bid1.basePrice + bid1.tip;
         // bidder1 approval
         vm.startPrank(bidder1);
-        proxysWETH.approve(address(proxyDeoxys), totalWeth);
-        assertEq(proxysWETH.allowance(bidder1, address(proxyDeoxys)), totalWeth);
+        weth.approve(address(proxyDeoxys), totalWeth);
+        assertEq(weth.allowance(bidder1, address(proxyDeoxys)), totalWeth);
 
         // bidder1 spends all WETH, leaving none for the settlement
-        proxysWETH.transfer(address(0x0), proxysWETH.balanceOf(bidder1));
+        weth.transfer(address(0x0), weth.balanceOf(bidder1));
         vm.stopPrank();
-        assertEq(proxysWETH.balanceOf(bidder1), 0);
+        assertEq(weth.balanceOf(bidder1), 0);
         
         bytes32 digest = settlement.hashTypedData(bid1);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
@@ -486,30 +422,30 @@ function test_settle() public {
         assertTrue(f);
         
         // assert WETH transfer was not completed due to insufficient balamnce
-        assertEq(proxysWETH.balanceOf(address(proxyDeoxys)), 0);
+        assertEq(weth.balanceOf(address(proxyDeoxys)), 0);
         // assert NFT was not minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), 0);
-        // assert pikaExample did not receive any eth
-        assertEq(address(pikaExample).balance, 0);
+        assertEq(auctionA.balanceOf(bidder1), 0);
+        // assert auctionA did not receive any eth
+        assertEq(address(auctionA).balance, 0);
     }
 
         // test skipping insufficient balances within multiple signatures
         function test_skipInsufficientWETHBalances() public {
             // bidders make approvals
             vm.prank(bidder1);
-            proxysWETH.approve(address(proxyDeoxys), 1 ether);
-            assertEq(proxysWETH.allowance(bidder1, address(proxyDeoxys)), 1 ether);
+            weth.approve(address(proxyDeoxys), 1 ether);
+            assertEq(weth.allowance(bidder1, address(proxyDeoxys)), 1 ether);
             vm.prank(bidder2);
-            proxysWETH.approve(address(proxyDeoxys), 1 ether);
-            assertEq(proxysWETH.allowance(bidder2, address(proxyDeoxys)), 1 ether);
+            weth.approve(address(proxyDeoxys), 1 ether);
+            assertEq(weth.allowance(bidder2, address(proxyDeoxys)), 1 ether);
             vm.startPrank(bidder3);
-            proxysWETH.approve(address(proxyDeoxys), 1 ether);
-            assertEq(proxysWETH.allowance(bidder3, address(proxyDeoxys)), 1 ether);
+            weth.approve(address(proxyDeoxys), 1 ether);
+            assertEq(weth.allowance(bidder3, address(proxyDeoxys)), 1 ether);
 
             // bidder3 spends their WETH before auction settlement
-            proxysWETH.transfer(address(0x0), 1 ether);
+            weth.transfer(address(0x0), 1 ether);
             vm.stopPrank();
-            assertEq(proxysWETH.balanceOf(bidder3), 0);
+            assertEq(weth.balanceOf(bidder3), 0);
 
             // prepare digests
             bytes32 digest = settlement.hashTypedData(bid1);
@@ -554,27 +490,27 @@ function test_settle() public {
             assertTrue(f);
 
             // assert payments were completed
-            assertEq(proxysWETH.balanceOf(bidder1), 1 ether - (bid1.amount * bid1.basePrice + bid1.tip));
-            assertEq(proxysWETH.balanceOf(bidder2), 1 ether - (bid2.amount * bid2.basePrice + bid2.tip));
-            assertEq(proxysWETH.balanceOf(address(settlement)), 0);
-            assertEq(address(pikaExample).balance, finalPayment);
+            assertEq(weth.balanceOf(bidder1), 1 ether - (bid1.amount * bid1.basePrice + bid1.tip));
+            assertEq(weth.balanceOf(bidder2), 1 ether - (bid2.amount * bid2.basePrice + bid2.tip));
+            assertEq(weth.balanceOf(address(settlement)), 0);
+            assertEq(address(auctionA).balance, finalPayment);
 
             // assert NFTs were minted to bidder1, bidder3
-            assertEq(pikaExample.balanceOf(bidder1), bid1.amount);
-            assertEq(pikaExample.balanceOf(bidder2), bid2.amount);
+            assertEq(auctionA.balanceOf(bidder1), bid1.amount);
+            assertEq(auctionA.balanceOf(bidder2), bid2.amount);
 
             // assert NFT was not minted to bidder3
-            assertEq(pikaExample.balanceOf(bidder3), 0);
+            assertEq(auctionA.balanceOf(bidder3), 0);
     }
 
     function test_skipSpentSigNonces() public {
         // bidder2 and bidder3 make approvals
         vm.prank(bidder2);
-        proxysWETH.approve(address(proxyDeoxys), 1 ether);
-        assertEq(proxysWETH.allowance(bidder2, address(proxyDeoxys)), 1 ether);
+        weth.approve(address(proxyDeoxys), 1 ether);
+        assertEq(weth.allowance(bidder2, address(proxyDeoxys)), 1 ether);
         vm.prank(bidder3);
-        proxysWETH.approve(address(proxyDeoxys), 1 ether);
-        assertEq(proxysWETH.allowance(bidder3, address(proxyDeoxys)), 1 ether);
+        weth.approve(address(proxyDeoxys), 1 ether);
+        assertEq(weth.allowance(bidder3, address(proxyDeoxys)), 1 ether);
 
         (uint8 v, bytes32 r, bytes32 s) = _prepareAndSignDigest(bid1, bidder1PrivateKey);
         Signature memory signature1 = Signature({
@@ -584,7 +520,7 @@ function test_settle() public {
             s: s
         });
 
-        // create signature array, first intentionally failing a signature submission via allowance to attempt replay attack
+        // create signature array with empty members, first intentionally failing a signature submission via allowance to attempt replay attack
         Signature[] memory signatures = new Signature[](3);
         signatures[1] = signature1;
 
@@ -595,9 +531,9 @@ function test_settle() public {
         assertTrue(f);
 
         // assert payment was not completed
-        assertEq(address(pikaExample).balance, 0);
+        assertEq(address(auctionA).balance, 0);
         // assert NFT was not minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), 0);
+        assertEq(auctionA.balanceOf(bidder1), 0);
         // assert signature was marked spent
         bytes32 sigHash = 
             keccak256(
@@ -633,8 +569,8 @@ function test_settle() public {
 
         // bidder1 belatedly makes approval
         vm.prank(bidder1);
-        proxysWETH.approve(address(settlement), 1 ether);
-        assertEq(proxysWETH.allowance(bidder1, address(settlement)), 1 ether);
+        weth.approve(address(settlement), 1 ether);
+        assertEq(weth.allowance(bidder1, address(settlement)), 1 ether);
 
         // assert SettlementFailure event is emitted with "Payment Failed" reason
         vm.expectEmit(true, true, false, true);
@@ -644,12 +580,12 @@ function test_settle() public {
         assertTrue(g);
 
         // assert payment completed only for signature2 and signature3
-        assertEq(address(pikaExample).balance, finalPayment);
+        assertEq(address(auctionA).balance, finalPayment);
         // assert NFT was not minted to bidder1
-        assertEq(pikaExample.balanceOf(bidder1), 0);
+        assertEq(auctionA.balanceOf(bidder1), 0);
         // assert NFTs were minted to bidder2 and bidder3
-        assertEq(pikaExample.balanceOf(bidder2), bid2.amount);
-        assertEq(pikaExample.balanceOf(bidder3), bid3.amount);
+        assertEq(auctionA.balanceOf(bidder2), bid2.amount);
+        assertEq(auctionA.balanceOf(bidder3), bid3.amount);
         // assert signature still marked spent
         bool stillSpent = proxyDeoxys.spentSigNonces(sigHash);
         assertTrue(stillSpent);
@@ -659,7 +595,7 @@ function test_settle() public {
     function test_settleUncheckedCannotOverflow() public {
         Bid memory overflowBid = Bid({
             auctionName: "TestNFT",
-            auctionAddress: address(pikaExample),
+            auctionAddress: address(auctionA),
             bidder: bidder1,
             amount: 30,
             basePrice: type(uint256).max,
@@ -667,7 +603,7 @@ function test_settle() public {
         });
 
         vm.prank(bidder1);
-        proxysWETH.approve(address(settlement), type(uint256).max);
+        weth.approve(address(settlement), type(uint256).max);
 
         bytes32 digest = settlement.hashTypedData(overflowBid);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digest);
@@ -718,9 +654,9 @@ function test_settle() public {
         });
 
         vm.prank(bidder1);
-        proxysWETH.approve(address(proxyDeoxys), type(uint256).max);
+        weth.approve(address(proxyDeoxys), type(uint256).max);
         vm.prank(bidder2);
-        proxysWETH.approve(address(proxyDeoxys), type(uint256).max);
+        weth.approve(address(proxyDeoxys), type(uint256).max);
 
         bytes32 digestFive = settlement.hashTypedData(five);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(bidder1PrivateKey, digestFive);
@@ -753,32 +689,17 @@ function test_settle() public {
         assertEq(tenMax.balanceOf(bidder2), 0);
     }
 
-    /// @dev Internal helper functions to alleviate the occurrance of the dreaded 'sTaCk tOo DeEp' error
-    function _generateBid(
-        string memory _auctionName,
-        address _auctionAddress,
-        address _bidder,
-        uint256 _amount,
-        uint256 _basePrice,
-        uint256 _tip
-    ) internal pure returns (BidSignatures.Bid memory) {
-        return (BidSignatures.Bid({
-            auctionName: _auctionName,
-            auctionAddress: _auctionAddress,
-            bidder: _bidder,
-            amount: _amount,
-            basePrice: _basePrice,
-            tip: _tip
-        }));
-    }
-    
-    function _prepareAndSignDigest(Bid memory _bid, uint256 _privateKey) internal view returns (uint8 _v, bytes32 _r, bytes32 _s) {
-            // prepare digest
-            bytes32 digest = settlement.hashTypedData(_bid);
-            (_v, _r, _s) = vm.sign(_privateKey, digest);
-        }
-
+    /// @dev Internal helper function to calculate total weth cost
+    /// @dev Included here as Solidity disallows structs from being natively passed between contracts (ie TestUtils.sol)
     function _calculateTotal(Signature memory _sig) internal pure returns (uint256) {
         return _sig.bid.amount * _sig.bid.basePrice + _sig.bid.tip;
+    }
+
+    /// @dev Internal helper function to generate EIP-712 compliant signatures
+    /// @dev Included here as the DOMAIN_SEPARATOR of the TestUtils contract is distinct from this contract's due to inheritance of SettlementUUPS
+    function _prepareAndSignDigest(Bid memory _bid, uint256 _privateKey) public view returns (uint8 _v, bytes32 _r, bytes32 _s) {
+        // prepare digest
+        bytes32 digest = settlement.hashTypedData(_bid);
+        (_v, _r, _s) = vm.sign(_privateKey, digest);
     }
 }

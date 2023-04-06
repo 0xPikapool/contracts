@@ -9,85 +9,46 @@ contract ProxyDeoxysTest is TestUtils {
 
     SettlementUUPS public settlement;
     ProxyDeoxys public proxyDeoxys;
-    WETH public proxysWETH;
 
-    string name;
-    string symbol;
-    uint256 public typeMax;
     uint256 public _mintMax;
     bytes public data;
 
-    // ERC721A transfer
-    event Transfer(address indexed from, address indexed to, uint256 indexed id);
-
     // initialize test environment
     function setUp() public {
-
-        typeMax = type(uint256).max;
         _mintMax = 30;
         data = abi.encodeWithSelector(settlement.init.selector, mainnetWETH, _mintMax);
         settlement = new SettlementUUPS();
         proxyDeoxys = new ProxyDeoxys(address(settlement), data);
-        proxysWETH = WETH(proxyDeoxys.weth());
-
-        name = "PikaExample";
-        symbol = "PIKA";
-        priceInGweth = 69;
-        maxSupply = type(uint256).max;
-        allocatedSupply = maxSupply / 2;
-        // zero address used as placeholder for revenue recipient
-        pikaExample = new Example721A(
-            name, 
-            symbol, 
-            address(proxyDeoxys), 
-            address(0x0), 
-            priceInGweth,
-            maxSupply,
-            allocatedSupply
-        );
-
-        // prepare the cow carcass beefy baby private keys with which to sign
-        bidder1PrivateKey = 0xDEADBEEF;
-        bidder2PrivateKey = 0xBEEF;
-        bidder3PrivateKey = 0xBABE;
-
-        bidder1 = vm.addr(bidder1PrivateKey);
-        // seed cow carcass bidder1 with 1 eth and wrap it to weth
-        vm.deal(bidder1, 1 ether);
-        vm.prank(bidder1);
-        proxysWETH.deposit{ value: 1 ether }();
-
-        bidder2 = vm.addr(bidder2PrivateKey);
-        // seed beef bidder with 1 eth and wrap it to weth
-        vm.deal(bidder2, 1 ether);
-        vm.prank(bidder2);
-        proxysWETH.deposit{ value: 1 ether }();
-
- 
-        bidder3 = vm.addr(bidder3PrivateKey);
-        // seed babe bidder with 1 eth and wrap it to weth
-        vm.deal(bidder3, 1 ether);
-        vm.prank(bidder3);
-        proxysWETH.deposit{ value: 1 ether }();
     }
 
     function test_setUp() public {
         assertEq(vm.activeFork(), mainnetFork);
+
         assertEq(address(proxyDeoxys.weth()), mainnetWETH);
         assertEq(proxyDeoxys.mintMax(), _mintMax);
+        // check owner on impl
         assertEq(settlement.owner(), address(this));
+        // check owner on 1967
         bytes memory _owner = abi.encodeWithSelector(settlement.owner.selector);
         (bool r, bytes memory owner) = address(proxyDeoxys).call(_owner);
+        assertTrue(r);
         assertEq(address(uint160(uint256(bytes32(owner)))), tx.origin);
-        assertEq(proxysWETH.balanceOf(bidder1), 1 ether);
-        assertEq(proxysWETH.balanceOf(bidder2), 1 ether);
-        assertEq(proxysWETH.balanceOf(bidder3), 1 ether);
+
+        assertEq(weth.balanceOf(bidder1), 1 ether);
+        assertEq(weth.balanceOf(bidder2), 1 ether);
+        assertEq(weth.balanceOf(bidder3), 1 ether);
     }
 
     function test_Upgrade() public {
         SettlementUUPS newSettlement = new SettlementUUPS();
+        // prank the address used by Foundry to deploy, thereby assuming owner role
         vm.prank(address(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38));
         bytes memory upgrade = abi.encodeWithSelector(settlement.upgradeTo.selector, address(newSettlement));
-        address(proxyDeoxys).call(upgrade);
+        (bool r,) = address(proxyDeoxys).call(upgrade);
+        assertTrue(r);
+
+        vm.prank(address(proxyDeoxys));
+        address newImpl = proxyDeoxys.getImpl();
+        assertEq(newImpl, address(newSettlement));
     }
 }

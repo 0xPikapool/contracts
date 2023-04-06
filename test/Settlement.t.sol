@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL
 pragma solidity ^0.8.13;
 
-// import "forge-std/Test.sol";
 import "./utils/TestUtils.sol";
 
 contract SettlementTest is TestUtils { 
 
-    // ensure test environment was properly initialized by TestUtils constructor
+    // ensure test environment was properly initialized
     function test_setUp() public {
         assertEq(vm.activeFork(), mainnetFork);
         assertEq(weth.balanceOf(bidder1), 1 ether);
@@ -14,7 +13,7 @@ contract SettlementTest is TestUtils {
         assertEq(weth.balanceOf(bidder3), 1 ether);
     }
 
-function test_settle() public {
+    function test_settle() public {
         // calculate totalWeth to pay
         uint256 totalWeth = bid1.amount * bid1.basePrice + bid1.tip;
         // bidder1 approves totalWeth amount to weth contract

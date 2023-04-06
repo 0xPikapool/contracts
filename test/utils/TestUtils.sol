@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL
 pragma solidity ^0.8.13;
+pragma abicoder v2;
 
 import "forge-std/Test.sol";
 import "solmate/tokens/WETH.sol";
@@ -15,7 +16,7 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
     Example721A public auctionB;
     Example721A public auctionC;
 
-    uint256 mainnetFork;
+    uint256 public mainnetFork;
     string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
 
     string name;
@@ -29,28 +30,31 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
     uint256 public allocatedSupplyA;
     uint256 public allocatedSupplyB;
     uint256 public allocatedSupplyC;
-    uint256 internal bidder1PrivateKey;
-    uint256 internal bidder2PrivateKey;
-    uint256 internal bidder3PrivateKey;
-    address internal bidder1;
-    address internal bidder2;
-    address internal bidder3;
-    BidSignatures.Bid bid1;
-    BidSignatures.Bid bid2;
-    BidSignatures.Bid bid3;
-    BidSignatures.Bid allocatedMinus10;
-    BidSignatures.Bid overFlow;
-    BidSignatures.Bid justRight;
+    uint256 public bidder1PrivateKey;
+    uint256 public bidder2PrivateKey;
+    uint256 public bidder3PrivateKey;
+    address public bidder1;
+    address public bidder2;
+    address public bidder3;
+    address public settlementAddress;
+    BidSignatures.Bid public bid1;
+    BidSignatures.Bid public bid2;
+    BidSignatures.Bid public bid3;
+    BidSignatures.Bid public allocatedMinus10;
+    BidSignatures.Bid public overFlow;
+    BidSignatures.Bid public justRight;
     bytes public err;
 
     // ERC721A transfer
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
 
-    // initialize test environment
     constructor() {
+        // initialize test fork from mainnet
         mainnetFork = vm.createFork(MAINNET_RPC_URL);
         vm.selectFork(mainnetFork);
 
+        settlementAddress = address(this);
+        
         // utilize various values including free mints as well as partial and entire Pikapool allocations
         auctionPriceA = 69;
         auctionPriceB = 10;
@@ -62,21 +66,21 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
         allocatedSupplyB = 50;
         allocatedSupplyC = 150;
 
-        // zero address used as placeholder for revenue recipient
+        // address(0x0) is used as a placeholder address for the _recipient that receives auction revenue
         auctionA = _generateAuction(
-            "auctionA", 
-            "PIKA", 
-            address(this), 
+            "TestNFT", 
+            "A", 
+            settlementAddress, 
             address(0x0), 
             auctionPriceA,
-            type(uint256).max,
+            maxSupplyA,
             allocatedSupplyA
         );
 
         auctionB = _generateAuction(
-            'AuctionB', 
+            'TestNFTB', 
             'B', 
-            address(this), 
+            settlementAddress, 
             address(0x0), 
             auctionPriceB,
             maxSupplyB,
@@ -84,9 +88,9 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
         );
 
         auctionC = _generateAuction(
-            'AuctionC', 
+            'TestNFTC', 
             'C', 
-            address(this), 
+            settlementAddress, 
             address(0x0), 
             auctionPriceC,
             maxSupplyC,
@@ -128,6 +132,104 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
         );
 
         bid2 = _generateBid(
+            "TestNFTB",
+            address(auctionA),
+            bidder2,
+            42,
+            auctionPriceA,
+            42
+        );
+
+        bid3 = _generateBid(
+            "TestNFTC",
+            address(auctionA),
+            bidder3,
+            12,
+            auctionPriceA,
+            420
+        );
+
+        // bids for test_allocatedSupply
+        allocatedMinus10 = _generateBid(
+            "TestNFT",
+            address(auctionA),
+            bidder1,
+            allocatedSupplyA - 10,
+            auctionPriceA,
+            0
+        );
+
+        overFlow = _generateBid(
+            "TestNFT",
+            address(auctionA),
+            bidder2,
+            11, // set to result in overflow, allocatedMints += amount > allocatedSupply
+            auctionPriceA,
+            1
+        );
+
+        justRight = _generateBid(
+            "TestNFT",
+            address(auctionA),
+            bidder3,
+            10,
+            auctionPriceA,
+            2
+        );
+    }
+
+    /// Utility Functions
+
+    /// @dev Public function provided to facilitate access to bid structs stored in this contract from tests across the repo
+    function getBids() public view returns (Bid[6] memory) {
+        return [bid1, bid2, bid3, allocatedMinus10, overFlow, justRight];
+    }
+
+    /// @dev Public function provided to facilitate testing of proxy contracts which possess shadowed storage variables and a different DOMAIN_SEPARATOR
+    function regenerateAuctionsAndBids(address _newSettlementAddress) public {
+        settlementAddress = _newSettlementAddress;
+
+        // address(0x0) is used as a placeholder address for the _recipient that receives auction revenue
+        auctionA = _generateAuction(
+            "TestNFT", 
+            "A", 
+            settlementAddress, 
+            address(0x0), 
+            auctionPriceA,
+            type(uint256).max,
+            allocatedSupplyA
+        );
+
+        auctionB = _generateAuction(
+            'TestNFTB', 
+            'B', 
+            settlementAddress, 
+            address(0x0), 
+            auctionPriceB,
+            maxSupplyB,
+            allocatedSupplyB
+        );
+
+        auctionC = _generateAuction(
+            'TestNFTC', 
+            'C', 
+            settlementAddress, 
+            address(0x0), 
+            auctionPriceC,
+            maxSupplyC,
+            allocatedSupplyC
+        );
+
+        bid1 = _generateBid(
+            "TestNFT",
+            address(auctionA),
+            bidder1,
+            30,
+            auctionPriceA,
+            69
+        );
+
+        bid2 = _generateBid(
             "TestNFT",
             address(auctionA),
             bidder2,
@@ -147,7 +249,7 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
 
         // bids for test_allocatedSupply
         allocatedMinus10 = _generateBid(
-            "auctionA",
+            "TestNFT",
             address(auctionA),
             bidder1,
             allocatedSupplyA - 10,
@@ -156,7 +258,7 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
         );
 
         overFlow = _generateBid(
-            "auctionA",
+            "TestNFT",
             address(auctionA),
             bidder2,
             11, // set to result in overflow, allocatedMints += amount > allocatedSupply
@@ -165,7 +267,7 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
         );
 
         justRight = _generateBid(
-            "auctionA",
+            "TestNFT",
             address(auctionA),
             bidder3,
             10,
@@ -218,7 +320,7 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
         uint8 _v,
         bytes32 _r,
         bytes32 _s
-    ) internal pure returns (Signature memory) {
+    ) public pure returns (Signature memory) {
         return (Signature({
             bid: _bid,
             v: _v,
@@ -227,13 +329,13 @@ abstract contract TestUtils is Test, Settlement(mainnetWETH, 200) {
         }));
     }
 
-    function _prepareAndSignDigest(Bid memory _bid, uint256 _privateKey) internal view returns (uint8 _v, bytes32 _r, bytes32 _s) {
-            // prepare digest
-            bytes32 digest = hashTypedData(_bid);
-            (_v, _r, _s) = vm.sign(_privateKey, digest);
-        }
+    function _prepareAndSignDigest(Bid memory _bid, uint256 _privateKey) public view returns (uint8 _v, bytes32 _r, bytes32 _s) {
+        // prepare digest
+        bytes32 digest = hashTypedData(_bid);
+        (_v, _r, _s) = vm.sign(_privateKey, digest);
+    }
 
-    function _calculateTotal(Signature memory _sig) internal pure returns (uint256) {
+    function _calculateTotal(Signature memory _sig) public pure returns (uint256) {
         return _sig.bid.amount * _sig.bid.basePrice + _sig.bid.tip;
     }
 }
